@@ -1,0 +1,257 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Luxtronik</title>
+  <meta content="width=device-width, initial-scale=0.9, user-scalable=yes" name="viewport">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body >
+      <h2>Luxtronik</h2>
+      <table>
+        <caption>Temperaturen [&#8451;]:</caption>
+        <tr>   
+          <td id="WW_IST">--</td>
+          <td id="VL_IST">--</td>
+          <td id="RL_IST">--</td>
+          <td id="AT_IST">--</td>
+        </tr>
+        <tr>
+          <th>WW</th>
+          <th>VL</th>
+          <th>RL</th>
+          <th>AT</th>
+        </tr>
+        <tr>
+          <td id="WW_SOLL">--</td>
+          <td id="VLRL_DIV">--</td>
+          <td id="RLSOLL_DIV">--</td>
+          <td id="RL_SOLL">--</td>
+        </tr>
+        <tr>
+          <th>WWSoll</th>
+          <th>VL-RL &Delta;</th>
+          <th>RL &Delta;</th>
+          <th>RLSoll</th>
+        </tr>
+        <tr>
+          <td id="WQ_IN">--</td>
+          <td id="VD_IN">--</td>
+          <td id="VD_HEIZ_TEMP">--</td>
+          <td id="VD_HEIZ_ON">--</td>
+        </tr>
+        <tr>
+          <th>Quelle-In</th>
+          <th>VD-IN</th>
+          <th>VD-Heiz</th>
+          <th>VD-Heiz-ON</th>
+        </tr>
+    </table>
+    <table>
+        <caption>Pumpe:</caption>
+        <tr>
+          <td id="PUMP_FLOW">--</td>
+          <td id="PUMP_PWM">--</td>
+          <td id="WW_VENTIL">--</td>
+        </tr>
+        <tr>
+          <th>Durchf-l/h</th>
+          <th>PWM-&#037;</th>
+          <th>WW-Ventil</th>
+        </tr>
+    </table>
+    <table>
+      <caption>Verdichter:</caption>
+        <tr>
+          <td id="VD_ND">--</td>
+          <td id="VD_HD">--</td>
+          <td id="VD_RPM">--</td>
+          <td id="VE_RPM">--</td>
+        </tr>
+        <tr>
+          <th>VD-ND bar</th>
+          <th>VD-HD bar</th>
+          <th>VD    RPM</th>
+          <th>Vent. RPM</th>
+        </tr>
+        <tr>
+          <td id="EEV_PERCENT">--</td>
+          <td id="DEFROST_PERCENT">--</td>
+          <td id="DEFROST_TIME">--</td>
+          <td id="VD_ONTIME">--</td>
+        </tr>
+        <tr>
+          <th>EEV&#037;</th>
+          <th>Abtaubed.&#037;</th>
+          <th>letz. Abtau.</th>
+          <th>VD Laufzeit</th>
+        </tr>
+    </table>
+    <table> 
+      <caption>Leistung: [kW]</caption>
+      <tr>
+        <td id="POWER_IN">--</td> 
+        <td id="POWER_OUT">--</td>
+        <td id="COP_AKT">--</td>
+      </tr>
+      <tr>
+        <th>Power-In</th> 
+        <th>Power-Out</th>
+        <th>COP-act.</th>
+      </tr>
+    </table>
+    <table>
+      <caption>Energie</caption>
+      <tr> 
+        <td id="WW_IN_KWH">--</td>
+        <td id="HE_IN_KWH">--</td>
+        <td id="SUMIN_KWH">--</td>
+      </tr>
+      <tr>
+        <th>WW-In kWh</th>
+        <th>Heiz-In kWh</th>
+        <th>Sum-In kWh</th>
+      </tr>
+      
+      <tr>
+        <td id="WW_COP">--</td>
+        <td id="HE_COP">--</td>
+        <td id="SUM_COP">--</td>
+      </tr>
+      <tr>
+        <th>COP WW   </th>
+        <th>COP HEIZ </th>
+        <th>COP SUM  </th>
+      </tr>
+
+      <tr>
+        <td id="WW_COPDAY">--</td>
+        <td id="HE_COPDAY">--</td>
+        <td id="SUM_COPDAY">--</td>
+      </tr>
+      <tr>
+        <th>COP-WW Tag</th>
+        <th>COP-HE Tag</th>
+        <th>COP-SUM Tag</th>
+      </tr>
+  </table>
+  <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
+  <button type="button" class="image-btn" onclick="gotoluxtronik()"><img src="luxtronik.png">Luxtronik</button>
+  <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Utility'"><img src="homeauto.png">Domoticz</button>
+         
+  <script type="text/javascript">
+      //var t = new Date();
+      // mal bei gelegentheit ausprobieren:
+      //const name = document.querySelector(".name"); // '.'' = class '#'' = id
+      function luxrequest()
+      {
+        window.location.href = "http://192.168.2.101";
+      }
+
+     function gotoluxtronik() 
+     {
+       var xhrlux = new XMLHttpRequest();
+       xhrlux.addEventListener("load", luxrequest);
+       xhrlux.open("POST", "luxtronik.html", true);
+       //xhrlux.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+       //xhrlux.setRequestHeader("Content-type", "text/raw");
+       xhrlux.send("name=WSoff&value=off&test=0");
+     }
+     //function sec2date(sec)
+     //{ return new Date(sec * 1000).toISOString().substring(11, 19)}
+     
+    function reqListener ()
+    {
+        var myResponse = this.responseText;
+        //myResponse = myResponse.toUpperCase();
+        //console.log(this.responseText);
+        var myArray = myResponse.split(",");
+      
+        //console.log(myArray);
+        sgrStatus = String(myArray[1]);
+        if (myArray[1] != null)
+        {
+         // Temp
+         document.getElementById('WW_IST').innerHTML  = myArray[4]; 
+         document.getElementById('WW_SOLL').innerHTML = "40.0" // z.Z. fix da nicht in info
+         document.getElementById('AT_IST').innerHTML  = myArray[5];
+         document.getElementById('RL_IST').innerHTML  = myArray[6];
+
+         document.getElementById('RL_SOLL').innerHTML = myArray[7];
+         document.getElementById('VL_IST').innerHTML  = myArray[8];
+         document.getElementById('WQ_IN').innerHTML   = myArray[31]
+         ;
+         document.getElementById('VD_IN').innerHTML   = myArray[25];
+         document.getElementById('VD_HEIZ_TEMP').innerHTML   = myArray[35];
+         document.getElementById('VD_HEIZ_ON').innerHTML    = myArray[23];
+
+         rldelta = (myArray[6]) - (myArray[7]);
+         document.getElementById('RLSOLL_DIV').innerHTML = rldelta.toFixed(2);
+
+         vlrldelta = (myArray[8]) - (myArray[6]);
+         document.getElementById('VLRL_DIV').innerHTML = vlrldelta.toFixed(2);
+
+         // Pump
+         document.getElementById('PUMP_FLOW').innerHTML  = myArray[20];
+         document.getElementById('PUMP_PWM').innerHTML   = myArray[21];
+         document.getElementById('WW_VENTIL').innerHTML  = myArray[22];
+ 
+         //VD
+         document.getElementById('VD_ND').innerHTML  = myArray[26]; 
+         document.getElementById('VD_HD').innerHTML  = myArray[27];
+         document.getElementById('VD_RPM').innerHTML  = myArray[24];
+         document.getElementById('VE_RPM').innerHTML = myArray[30];
+
+         document.getElementById('EEV_PERCENT').innerHTML     = myArray[33]; 
+         document.getElementById('DEFROST_PERCENT').innerHTML = myArray[29];
+         document.getElementById('DEFROST_TIME').innerHTML    = myArray[32];
+         document.getElementById('VD_ONTIME').innerHTML       = myArray[34];
+         
+         // Power
+         document.getElementById('POWER_IN').innerHTML     = myArray[9]; 
+         document.getElementById('POWER_OUT').innerHTML    = myArray[10];
+         if (parseFloat( myArray[9]) > 0)
+         {      
+          document.getElementById('COP_AKT').innerHTML = ((myArray[10] *1.0) / myArray[9]).toFixed(2);
+         }
+         else
+         {
+           document.getElementById('COP_AKT').innerHTML = "--"
+         }
+
+         // Energy
+         document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
+         document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
+         document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+
+         // COP
+         if (parseFloat( myArray[11]) > 0)
+         {
+           document.getElementById('HE_COP').innerHTML = ((myArray[14] *1.0) / myArray[11]).toFixed(2);
+         }
+         if (parseFloat( myArray[12]) > 0)
+         {
+          document.getElementById('WW_COP').innerHTML   = ((myArray[15] *1.0) / myArray[12]).toFixed(2);
+         }
+         if (parseFloat(myArray[13]) > 0)
+         {
+          document.getElementById('SUM_COP').innerHTML = ((myArray[16] *1.0) / myArray[13]).toFixed(2);
+         }
+
+         // COP-Day
+         document.getElementById('WW_COPDAY').innerHTML = myArray[18];
+         document.getElementById('HE_COPDAY').innerHTML = myArray[17];
+         document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
+         
+        }
+    }
+    var oReq = new XMLHttpRequest();
+    oReq.addEventListener("load", reqListener);
+    setInterval(function()
+    {
+        //var dateNow = new Date();  // current time
+        oReq.open("GET", "/fetch");
+        oReq.send();
+    }, 2000);
+  </script>
+</body>
+</html>

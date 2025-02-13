@@ -1,0 +1,171 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+   <title>SG-Ready</title>
+   <meta content="width=device-width, initial-scale=1.0, user-scalable=yes" name="viewport">
+   <link rel="stylesheet" type="text/css" href="style.css">
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body >
+     <h2>Set SG-Ready Mode</h2>
+   
+     <form action="" method="POST" >
+      <input class="buttonsmallblue" id="sg1" type="submit" name="sg1" value="mode1">
+      <input class="buttonsmallgreen" id="sg2" type="submit" name="sg2" value="mode2">
+      <input class="buttonsmallorange" id="sg3" type="submit" name="sg3" value="mode3">
+      <input class="buttonsmallred" id="sg4" type="submit" name="sg4" value="mode4">
+     </form>
+     <div style="height: 20px;"> </div>
+     <div style="height: 320px">
+      <canvas id="myChart"></canvas>
+     </div>
+     <!---
+     <div class="flex">
+      <form action="" method="POST">
+       <label class="buttonblue"> <input type="radio" id="sg1" name="mode" value="mode1"/>SG-Mode 1</label>
+       <label class="buttongreen"><input type="radio" id="sg2" name="mode" value="mode2"/>SG-Mode 2</label>
+       <label class="buttonred">  <input type="radio" id="sg3" name="mode" value="mode3"/>SG-Mode 4</label>
+      </form>
+     </div>
+     -->
+     <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
+     <button style="width: 100px;" type="button" class="image-btn" > </button>
+     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+
+
+    <script type="text/javascript">
+      var myStatus = "%SGMODE%";
+      if (myStatus == "sg1")
+      {
+          document.getElementById('sg1').style.color = 'gray';
+      }
+      else
+      if (myStatus == "sg2")
+      {
+          document.getElementById('sg2').style.color = 'gray';
+      }
+      else
+      if (myStatus == "sg3")
+      {
+          document.getElementById('sg3').style.color = 'gray';
+      }
+      else
+      if (myStatus == "sg4")
+      {
+        document.getElementById('sg4').style.color = 'gray';
+      }
+
+      const ctx = document.getElementById('myChart');
+       var chartColors = {
+        red: 'red',
+        green: 'green',
+        yellow: 'orange',
+        blue: 'blue',
+       };
+
+      // Idee: für Stunden Click von SG-Mode 1..4 
+      // https://stackoverflow.com/questions/37122484/chart-js-bar-chart-click-events
+     
+      var xvar = ["00:00","1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"," 19:00", "20:00", "21:00", "22:00", "23:00"];
+     
+      var yvar = [%SGHOURMODE%];
+      //var yvar = [       2,    2,      2,      2,      2,      2,      1,      2,      2,      2,       2,       2,       2,       3,       4,       2,       2,       2,       2,      2,        1,      1,        2,       2];
+     
+
+      var verticalLinePlugin = 
+      {
+         id: 'verticalLinePlugin',
+         beforeDatasetsDraw: function (chart) 
+         {
+          var xScale = chart.scales['x'];
+          var yScale = chart.scales['y'];
+
+          // Get the maximum x-value across all datasets
+          //var maxXValue = Math.max(...chart.data.datasets.flatMap(dataset => dataset.data.map(point => point.x)));
+
+          const date = new Date();
+          const hour = date.getHours();
+          var imax = yvar.reduce((iMax, x, i, yvar) => x > yvar[iMax] ? i : iMax, 0);
+          var imin = yvar.reduce((iMin, x, i, yvar) => x < yvar[iMin] ? i : iMin, 0); 
+          
+          // Get the x position for the maximum x-value
+          var xPosNow = xScale.getPixelForValue(xvar[hour]);
+        
+          // Draw today line
+           chart.ctx.beginPath();
+           chart.ctx.moveTo(xPosNow, yScale.bottom);
+           chart.ctx.lineWidth = 3;
+           chart.ctx.strokeStyle = '#000000';
+           chart.ctx.fillText('now', xPosNow + 5, yScale.top + 5);
+           chart.ctx.lineTo(xPosNow, yScale.top);
+           chart.ctx.stroke();
+         }
+      };
+
+      var myChart = new Chart(ctx, {
+                  type: "bar",
+                  //title: "SGready",
+                  options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                       y: { min:0} 
+                    },
+                    
+                    plugins: 
+                    {
+                          title: {
+                         display: true,
+                         text: 'SG-ready mode',
+                        }
+                    }
+                    
+                  },
+                  // Append Plugin to the chart
+                  plugins: [verticalLinePlugin],
+                  data: {
+                         labels: xvar,
+                         datasets: [
+                                    {
+                                     label: "mode",
+                                     backgroundColor: [chartColors.green],
+                                     borderRadius: 6,
+                                     data: yvar,
+                                    },
+                                   ],
+                  },
+      });
+
+      myChart.update();
+
+  
+     window.onload = function () 
+     {
+      var dataset = myChart.data.datasets[0];
+      for (var i = 0; i < dataset.data.length; i++) 
+      {
+       if (dataset.data[i] == 1){
+        dataset.backgroundColor[i] = chartColors.blue;
+       }
+       else
+       if (dataset.data[i] == 2)
+       {
+        dataset.backgroundColor[i] = chartColors.green;
+       }
+       else
+       if (dataset.data[i] == 3) {
+       dataset.backgroundColor[i] = chartColors.yellow;
+       }
+       else
+       if (dataset.data[i] == 4) {
+       dataset.backgroundColor[i] = chartColors.red;
+       }
+      }
+      myChart.update(); //update the chart
+
+     }
+    
+   </script>
+</body>
+</html>

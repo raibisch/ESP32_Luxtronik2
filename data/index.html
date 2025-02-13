@@ -1,0 +1,198 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>%DEVICEID%</title>
+        <meta content="width=device-width, initial-scale=0.8, user-scalable=yes" name="viewport">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <meta charset="UTF-8">
+        <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+        <link rel="icon" sizes="192x192" href="android-chrome-192x192.png">
+        <link rel="icon" href="favicon.ico">
+        <link rel="manifest" href="manifest.json">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme-color" content="#ffffff">
+    </head>
+    <body>
+      <h2>%DEVICEID%</h2>
+      <div class="outerring" id="RING_ID">
+       <div class="innerring"></div>
+       <div id="KW_IN" class="ringtext_value">xxx.xxx</div>
+       <div class="ringtext_unit">[kW-In]</div>
+       <div id="COP_AKT" class="ringtext_value2">xx.x</div>
+       <div class="ringtext_unit2">[COP-Akt.]</div>
+       <div class="ringtext_time" id="TIME">--:--</div>
+       <div class="ringtext_status1" id="WP_STATUS">WP-AUS</div>
+       <div class="ringtext_status2" id="SGR_STATUS">--</div>
+     </div>
+     <table>
+            <tr>
+              <td id="WW_IST">--</td>
+              <td id="VL_IST">--</td>
+              <td id="RL_IST">--</td>
+              <td id="AT_IST">--</td>
+            </tr>
+            <tr>
+              <th>WW[&#8451;]</th>
+              <th>VL[&#8451;]</th>
+              <th>RL[&#8451;]</th>
+              <th>TA[&#8451;]</th>
+            </tr>
+            <tr>
+              <td id="HUP_LH">--</td>
+              <td id="RL_VL_IST">--</td>
+              <td id="RLSOLL_RLIST">--</td>
+              <td id="RL_SOLL">--</td>
+            </tr>
+            <tr>
+              <th>HP[l/h]</th>
+              <th>VL-RL &Delta;</th>
+              <th>RL-SOLL &Delta;</th>
+              <th>RL-SOLL</th>
+            </tr>
+        </table>
+        <table>
+            <tr>
+              <td id="WW_IN_KWH">--</td>
+              <td id="HE_IN_KWH">--</td>
+              <td id="SUMIN_KWH">--</td>
+              <td id="SUMEL_KWH">--</td>
+            </tr>
+            <tr>
+              <th>WW-In kWh</th>
+              <th>He-In kWh</th>
+              <th>Sum-In kWh</th>
+              <th>Elekt.kWh</th>
+            </tr>
+            <tr>
+              <td id="WW_COP">--</td>
+              <td id="HE_COP">--</td>
+              <td id="SUM_COP">--</td>
+              <td id="ELEKT_COP">--</td>
+            </tr>
+            <tr>
+              <th>COP WW   </th>
+              <th>COP HEIZ </th>
+              <th>COP SUM  </th>
+              <th>COP ELEKT</th>
+            </tr>
+      </table>
+    <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
+    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Luxtronik</button>
+    <button type="button" class="image-btn" onclick="window.location.href='sgready.html'"><img src="sgready.png">SGready</button> 
+    <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
+    <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
+     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+         
+    <script type="text/javascript">
+            //var t = new Date();
+            function reqListener ()
+            {
+              var myResponse = this.responseText;
+              //myResponse = myResponse.toUpperCase();
+              //console.log(this.responseText);
+              var myArray = myResponse.split(",");
+            
+              //console.log(myArray);
+              sgrStatus = String(myArray[1]);
+              wpStatus = "--";
+              if (myArray[1] != null)
+              {
+               document.getElementById('TIME').innerHTML = myArray[0];
+               document.getElementById('SGR_STATUS').innerHTML  = "SGready-Mode:" + sgrStatus;
+               wpStatus = myArray[3]; // status Heatpump
+
+               document.getElementById('KW_IN').innerHTML   = myArray[2] ;
+               document.getElementById("WP_STATUS").innerHTML = myArray[3];
+               document.getElementById('WW_IST').innerHTML  = myArray[4]; 
+               document.getElementById('AT_IST').innerHTML  = myArray[5];
+               document.getElementById('RL_IST').innerHTML  = myArray[6];
+               document.getElementById('RL_SOLL').innerHTML = myArray[7];
+               document.getElementById('VL_IST').innerHTML  = myArray[8];
+             
+               document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
+               document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
+               document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+               document.getElementById('HUP_LH').innerHTML    = myArray[20];
+               //document.getElementById('SUMEL_KWH').innerHTML = myArray[4];
+
+               rldelta = (myArray[6]) - (myArray[7]);
+               document.getElementById('RLSOLL_RLIST').innerHTML = rldelta.toFixed(2);
+
+               vlrldelta = (myArray[8]) - (myArray[6]);
+               document.getElementById('RL_VL_IST').innerHTML = vlrldelta.toFixed(2);
+
+               if (parseFloat( myArray[9]) > 0)
+               {
+                 document.getElementById('COP_AKT').innerHTML = ((myArray[10] *1.0) / myArray[9]).toFixed(2);
+               }
+               else
+               {
+                document.getElementById('COP_AKT').innerHTML = "--"
+               }
+
+               if (parseFloat( myArray[11]) > 0)
+               {
+                document.getElementById('HE_COP').innerHTML = ((myArray[14] *1.0) / myArray[11]).toFixed(2);
+               }
+
+               if (parseFloat( myArray[12]) > 0)
+               {
+                document.getElementById('WW_COP').innerHTML   = ((myArray[15] *1.0) / myArray[12]).toFixed(2);
+               }
+
+               if (parseFloat(myArray[13]) > 0)
+               {
+                document.getElementById('SUM_COP').innerHTML = ((myArray[16] *1.0) / myArray[13]).toFixed(2);
+               }
+              }
+             
+              // example : https://code-boxx.com/change-override-css-with-javascript
+              if (sgrStatus.startsWith('1'))
+              {
+                //document.getElementById('SGR_STATUS').style.color = 'blue';
+                // in Zukunft nur bei WP-on blinken
+                //document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'blue';
+              }
+              else if (sgrStatus.startsWith('2'))
+              {
+                //document.getElementById('SGR_STATUS').style.color = 'green';
+                 // in Zukunft nur bei WP-on blinken
+                //document.getElementById('RING_ID').className = "outerring_blink";    
+                document.getElementById('RING_ID').style.background = 'green'; 
+              }
+              else if (sgrStatus.startsWith('3'))
+              {
+                //document.getElementById('SGR_STATUS').style.color = 'orange';
+                 // in Zukunft nur bei WP-on blinken
+                //document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'orange';
+              }
+              else
+              if (sgrStatus.startsWith('4'))
+              {
+                //document.getElementById('SGR_STATUS').style.color = 'red';
+                 // in Zukunft nur bei WP-on blinken
+                //document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'red';
+              }
+              else
+              {
+                document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'black';
+              }
+            }
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", reqListener);
+            setInterval(function()
+            {
+              //var dateNow = new Date();  // current time
+              oReq.open("GET", "/fetch");
+              oReq.send();
+            }, 2000);
+    </script>
+    </body>
+</html>

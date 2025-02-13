@@ -1,0 +1,14 @@
+.pio
+.vscode
+*.intern
+d_a_t_a
+DS100*
+picture
+ESP32_
+config.txt
+cred.txt
+*.intern
+
+
+
+

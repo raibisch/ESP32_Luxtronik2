@@ -1,0 +1,290 @@
+html {
+  font-family: monospace;
+  display: inline-block;
+  margin: auto;
+  text-align: center;
+  font-size:0.7rem;
+  min-width:320px;
+}
+h1{color: blue;padding: 15px;}
+h3{color:blue;padding:10px;}
+body{ font-weight: bold; background-color: darkgray}
+
+.button, .buttonblue, .buttongreen, .buttonred, .buttonyellow, .buttonorange, .buttonlink { 
+  display: inline-block;
+  width: 75%;
+  max-width: 280px;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 2rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.buttonsmall, .buttonsmallblue, .buttonsmallgreen, .buttonsmallred,  .buttonsmallorange {
+  display: inline-block;
+  width: 20%;
+  max-width: 140px;
+  padding: 10px 5px;
+  border: none;
+  border-radius: 8px;
+  background-color: #008CBA;
+  color: white;
+  font-size: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.buttonsmallgreen {
+  background-color: darkgreen;
+}
+
+.buttonsmallred {
+  background-color: #f10b0b;
+}
+
+.buttonsmallorange {
+  background-color: orange;
+}
+
+.buttonsmallblue {
+  background-color: blue;
+}
+
+
+.buttonyellow {
+  background-color: #94821a;
+  visibility: hidden;
+}
+
+.buttonorange {
+  background-color: orange;
+}
+
+
+.buttonlink {
+  background-color: #008CBA;
+}
+
+
+
+.table {
+  width: 32%;
+}
+
+.container {
+  display: inline-block;
+  width: 90%;
+  border: 3px solid red;
+  border-radius: 10px;
+  padding: 15px;  
+  text-align: center;
+}
+.chart-container {
+  width: 100%;
+  height: 30vh;
+}
+
+a:link {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+caption
+{
+ margin: 1px;
+}
+
+input{  
+       margin: 5px;
+       width: 120px;
+       border-radius: 5px;
+       padding: 5px;
+     }
+
+table{ 
+ width: 90%;
+ max-width: 480px;
+ padding: 15px 20px;
+ margin-left: auto;
+ margin-right: auto;
+ }
+
+th{
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0rem;
+  /*border: 3px solid gray; */
+}
+
+td{
+  width: 100px;
+  background-color: white;
+  color: black;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0rem;
+  border: 5px solid lightblue;
+}
+
+.td_blue{
+  background-color: white;
+  color: black;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0rem;
+  border: 3px solid blue; 
+  accent-color: blue;
+}
+
+.td_green{
+  background-color: white;
+  color: black;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0rem;
+  border: 3px solid green; 
+  accent-color: green;
+}
+
+
+.td_orange{
+  background-color: white;
+  color: black;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0rem;
+  border: 3px solid orangered; 
+  accent-color:  red;
+}
+
+textarea{
+  width:90%;
+  max-width: 600px;
+  height: 25vh;
+}
+
+.myblink {
+  width: 33%; 
+  animation: blinkingBackground 2s infinite;
+}
+.mynoblink {
+  width: 30%; 
+  animation: none;
+}
+
+.sgradio {
+  cursor: pointer;
+}
+
+.outerring {
+  display: inline-block;
+  width: 360px;
+  height: 180px;
+  border-radius: 10%;
+  position: relative;
+  background-color: black;
+  margin: 10px;
+  cursor:pointer;
+}
+
+.outerring_blink {
+  display: inline-block;
+  width: 50%;
+  max-width: 360px;
+  height:180px;
+  border-radius: 10%;
+  position: relative;
+  background-color: black;
+  margin: 10px;
+  cursor:pointer;
+  animation: blinkingBackground 2s infinite;
+  }
+
+  .innerring {
+    position: absolute;
+    width: 96%;
+    height: 95%;
+    border-radius: 8%;
+    background-color: #ffffff;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.1s ease-out;
+  }
+  
+.ringtext_value {
+  font-size: 2.1rem;
+  position: relative;
+  top: 10%;
+  text-align: center;
+}
+
+.ringtext_unit {
+  position: relative;
+  top: 10%;
+  text-align: center;
+}
+
+.ringtext_value2 {
+  font-size: 2.0rem;
+  position: relative;
+  top: 15%;
+  text-align: center;
+}
+
+.ringtext_unit2 {
+  position: relative;
+  top: 15%;
+  text-align: center;
+}
+
+
+.ringtext_time {
+  position: relative;
+  top: 30%;
+  text-align: center;
+}
+
+.ringtext_status1 {
+  position: relative;
+  top: 15%; 
+  text-align: center;
+}
+
+.ringtext_status2 {
+  position: relative;
+  top: 30%; 
+  text-align: center;
+}
+
+.outer:hover .inner {
+  width: 80%;
+  height: 80%;
+}
+
+.image-btn{
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 28%;
+  max-width: 120px;
+  padding: 25px;
+  text-align: left;
+}
+
+.image-btn img{
+  display: block; /* to remove extra space below image */
+}
+
+label {display: block; padding: 1ex;}
+.flex label { cursor: pointer }
+
+
+@keyframes blinkingBackground {
+    40% {
+        opacity: 0.4;
+    }
+}

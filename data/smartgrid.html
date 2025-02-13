@@ -1,0 +1,256 @@
+<!DOCTYPE HTML>
+<html>
+<head>  
+  <title>DayAheadEPEX Price</title>
+    <meta content="width=device-width, initial-scale=1.0, user-scalable=yes" name="viewport">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+  <body>
+      <div class="chart-container" >
+      <canvas id="myChart"></canvas>
+      </div>
+      <p>%EPEX_DATE%</p>
+      <div class="chart-container">
+        <canvas id="myChart_sg"></canvas>
+      </div>  
+     
+    <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">Home</button>
+    <button type="button" class="image-btn" onclick="window.location.href='config.html'"><img src="settings.png">Config</button>
+  
+    <script type="text/javascript">
+
+      const ctx = document.getElementById('myChart');
+      const ctx_sg = document.getElementById('myChart_sg');
+      var chartColors = {red: 'red', green: 'green', yellow: 'orange', orange: 'darkorange', blue: 'blue',};
+
+      var xvar = ["00:00","1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"," 19:00", "20:00", "21:00", "22:00", "23:00","00:00","1;00", "2;00", "3;00", "4;00", "5;00", "6;00", "7;00", "8;00", "9;00", "10;00", "11;00", "12;00", "13;00", "14;00", "15;00", "16;00", "17;00", "18;00"," 19;00", "20;00", "21;00", "22;00", "23;00"];
+      
+      //* for build
+      var yvar      = [%EPEX_ARRAY%];
+      var yvar_sg   = [%SGHOURMODE%];
+      var costMwst  = %COST_MWST%;
+      var costFix   = %COST_FIX%;
+      var price_high= %PRICE_HIGH%;
+      var price_low = %PRICE_LOW%;
+      //*/
+
+      /* for debuging 
+      var yvar =    [ 60.08,  60.05,  58.93,  62.46,  76.82,  85.18, 102.38, 117.95, 100.69, 75.17,  59.21,  36.46,   36.18,   35.59,   33.63, 35.57,   47.68,   85.75,   104.73,  180.04,  204.57,  108.55,  87.29, 81.15, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0];
+      var yvar_sg = [   2,    2,      2,      2,      2,      2,      1,      2,      2,      2,      2,      2,      2,       3,       4,       2,       2,       2,       2,      2,        1,      1,        2,     2 ,     0,     1,     0,     1,     0,     1,     0,     1,     0,     1,   0,       1,     0,     1,     0,     1,     0,     1,     0,     1,     0,     1,     0,     1];
+      costMwst=19;
+      costFix=17.51;
+      var price_high  = 29; 
+      var price_low = 24;  
+      //*/
+
+      var yvarcent = [];
+      for (let index = 0; index < yvar.length; index++) 
+      {
+       if (yvar[index] < 999.0)
+       {
+        yvarcent[index] = (yvar[index] / 10) + (yvar[index]*(costMwst/1000.0)) + costFix;
+       } 
+       else
+       {
+        yvarcent[index] = 0.0;
+       }
+      
+      }
+       
+       // https://medium.com/@parkpoom.wisedsri/adding-a-vertical-line-plugin-to-a-scatter-plot-in-chart-js-v-acb19c8b3a60
+      var verticalLinePlugin = 
+      {
+         id: 'verticalLinePlugin',
+         beforeDatasetsDraw: function (chart) 
+         {
+          var xScale = chart.scales['x'];
+          var yScale = chart.scales['y'];
+
+          // Get the maximum x-value across all datasets
+          //var maxXValue = Math.max(...chart.data.datasets.flatMap(dataset => dataset.data.map(point => point.x)));
+
+          const date = new Date();
+          const hour = date.getHours();
+          var imax = yvar.reduce((iMax, x, i, yvar) => x > yvar[iMax] ? i : iMax, 0);
+          var imin = yvar.reduce((iMin, x, i, yvar) => x < yvar[iMin] ? i : iMin, 0); 
+          
+          // Get the x position for the maximum x-value
+          var xPosNow = xScale.getPixelForValue(xvar[hour]);
+          var xPosMax = xScale.getPixelForValue(xvar[imax]);
+          var xPosMin = xScale.getPixelForValue(xvar[imin]);
+          // old: by JG: var xPos = xScale.getPixelForValue(new Date(maxXValue));
+
+          // Draw today line
+           chart.ctx.beginPath();
+           chart.ctx.moveTo(xPosNow, yScale.bottom);
+           chart.ctx.lineWidth = 3;
+           chart.ctx.strokeStyle = '#000000';
+           chart.ctx.fillText('now', xPosNow + 5, yScale.top + 5);
+           chart.ctx.lineTo(xPosNow, yScale.top);
+           chart.ctx.stroke();
+
+
+           // Draw max the line
+           chart.ctx.beginPath();
+           chart.ctx.moveTo(xPosMax, yScale.bottom);
+           chart.ctx.lineWidth = 3;
+           chart.ctx.strokeStyle = '#ff0000';
+           chart.ctx.fillText('max', xPosMax + 5, yScale.top + 5);
+           chart.ctx.lineTo(xPosMax, yScale.top);
+           chart.ctx.stroke();
+
+
+          // Draw min the line
+          chart.ctx.beginPath();
+          chart.ctx.moveTo(xPosMin, yScale.bottom);
+          chart.ctx.lineWidth = 4;
+          chart.ctx.strokeStyle = '#00ff00';
+          chart.ctx.fillText('min', xPosMin + 5, yScale.top + 5);
+          chart.ctx.lineTo(xPosMin, yScale.top);
+          chart.ctx.stroke();
+         }
+      };
+
+      var myChart = new Chart(ctx, {
+                  type: "bar",
+                  title: "EPEX cent/kWh",
+                  options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                       y: { min:0} 
+                    },
+                    plugins: 
+                    {
+                          title: {
+                         display: true,
+                         text: 'EPEX cent/kWh',
+                        }
+                    }
+                  },
+                  // Append Plugin to the chart
+                  plugins: [verticalLinePlugin],
+                  data: {
+                         labels: xvar,
+                         datasets: [
+                                    {
+                                     label: "cent",
+                                     backgroundColor: [chartColors.green],
+                                     borderRadius: 6,
+                                     data: yvarcent,
+                                    },
+                                   ],
+                  },
+      });
+
+      // -------Smart-Grid Chart --------------
+      var verticalLinePlugin_sg = 
+      {
+         id: 'verticalLinePlugin_sg',
+         beforeDatasetsDraw: function (chart) 
+         {
+          var xScale = chart.scales['x'];
+          var yScale = chart.scales['y'];
+
+          // Get the maximum x-value across all datasets
+          //var maxXValue = Math.max(...chart.data.datasets.flatMap(dataset => dataset.data.map(point => point.x)));
+
+          const date = new Date();
+          const hour = date.getHours();
+          var imax = yvar_sg.reduce((iMax, x, i, yvar_sg) => x > yvar_sg[iMax] ? i : iMax, 0);
+          var imin = yvar_sg.reduce((iMin, x, i, yvar_sg) => x < yvar_sg[iMin] ? i : iMin, 0); 
+          
+          // Get the x position for the maximum x-value
+          var xPosNow = xScale.getPixelForValue(xvar[hour]);
+        
+          // Draw today line
+           chart.ctx.beginPath();
+           chart.ctx.moveTo(xPosNow, yScale.bottom);
+           chart.ctx.lineWidth = 3;
+           chart.ctx.strokeStyle = '#000000';
+           chart.ctx.fillText('now', xPosNow + 5, yScale.top + 5);
+           chart.ctx.lineTo(xPosNow, yScale.top);
+           chart.ctx.stroke();
+         }
+      };
+
+      var myChart_sg = new Chart(ctx_sg, {
+                  type: "bar",
+                  title: "SGready",
+                  options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                       y: { min:0} 
+                    },
+                    
+                    plugins: 
+                    {
+                          title: {
+                         display: true,
+                         text: 'SG-ready mode',
+                        }
+                    }
+                    
+                  },
+                  // Append Plugin to the chart
+                  //plugins: [verticalLinePlugin_sg],
+                  data: {
+                         labels: xvar,
+                         datasets: [
+                                    {
+                                     label: "mode",
+                                     backgroundColor: [chartColors.green],
+                                     borderRadius: 5,
+                                     data: yvar_sg,
+                                    },
+                                   ],
+                  },
+      });
+      
+      window.onload = function () 
+      {
+      var dataset = myChart.data.datasets[0];
+      for (var i = 0; i < dataset.data.length; i++) 
+      {
+       if (dataset.data[i] >= price_high){
+        dataset.backgroundColor[i] = chartColors.red;
+       }
+       else
+       if (dataset.data[i] <= price_low) {
+       dataset.backgroundColor[i] = chartColors.green;
+       }
+       else
+       {
+         dataset.backgroundColor[i] = chartColors.orange;
+       }
+      }
+      myChart.update();
+
+
+      var dataset_sg = myChart_sg.data.datasets[0];
+      for (var i = 0; i < dataset_sg.data.length; i++) 
+      {
+       if (dataset_sg.data[i] == 1){
+        dataset_sg.backgroundColor[i] = chartColors.blue;
+       }
+       else
+       if (dataset_sg.data[i] == 2){
+        dataset_sg.backgroundColor[i] = chartColors.green;
+       }
+       else
+       if (dataset_sg.data[i] == 3) {
+        dataset_sg.backgroundColor[i] = chartColors.yellow;
+       }
+       else
+       if (dataset_sg.data[i] == 4) {
+        dataset_sg.backgroundColor[i] = chartColors.red;
+       }
+      }
+      myChart_sg.update(); //update the chart
+
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Stromz&aumller</title>
+        <meta content="width=device-width, initial-scale=0.9, user-scalable=yes" name="viewport">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body >
+      <h2>Stromz&aumlhler</h2>
+      <table>
+        <caption>Hauptz&aumlhler</caption>
+         <td class="table" id="SML_W">--</td>  
+         <td class="table" id="SML_IN">--</td>
+         <td class="table" id="SML_OUT">--</td>
+       </tr>
+       <tr>
+         <th>aktPower [W]</th>
+         <th>IN [kWh]</th>
+         <th>OUT [kWh]</th>
+         <th> </th>
+       </tr>
+  </table>
+</br></br>
+     <table>
+      <caption>Unterverteiler W&aumlrmepumpe</caption>
+           <tr>
+             <td class="table" id="L1_V">--</td>  
+           </tr>
+           <tr>
+             <th>L1 [V]</th>   
+           </tr>
+           <tr>
+            <td class="table" id="L1_W">--</td>
+            <td class="table" id="L2_W">--</td>
+            <td class="table" id="L3_W">--</td>
+          </tr>
+          <tr>
+            <th>L1 [kW] W&aumlrmepumpe</th>
+            <th>L2 [kW] Heizstab</th>
+            <th>L3 [kW] Heizstab</th>
+            <th> </th>
+          </tr>
+          <tr>
+            <td class="table" id="L1_WH">--</td>
+            <td class="table" id="L2_WH">--</td>
+            <td class="table" id="L3_WH">--</td>
+          </tr>
+          <tr>
+              <th>L1 [KWh] W&aumlrmepumpe</th>
+              <th>L2 [KWh] Heizstab</th>
+              <th>L3 [KWh] Heizstab</th>
+              <th> </th>
+          </tr>
+     </table>
+   
+    </p>
+       
+    <p>
+   
+    <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
+    <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+         
+    <script type="text/javascript">
+            //var t = new Date();
+            function reqListener ()
+            {
+              var myResponse = this.responseText;
+              //myResponse = myResponse.toUpperCase();
+              //console.log(this.responseText);
+              var myArray = myResponse.split(",");
+            
+              //console.log(myArray);
+              if (myArray[1] != null)
+              {
+               document.getElementById('L1_W').innerHTML   = myArray[0] /1000.0;
+               document.getElementById('L2_W').innerHTML   = myArray[1] /1000.0;
+               document.getElementById('L3_W').innerHTML   = myArray[2] /1000.0;
+               document.getElementById('L1_WH').innerHTML  = myArray[3] /1000.0;
+               document.getElementById('L2_WH').innerHTML  = myArray[4] /1000.0;
+               document.getElementById('L3_WH').innerHTML  = myArray[5] /1000.0;
+               document.getElementById('L1_V').innerHTML   = myArray[6] /1000.0;
+               document.getElementById('SML_W').innerHTML  = myArray[7];
+               document.getElementById('SML_IN').innerHTML = myArray[8];
+               document.getElementById('SML_OUT').innerHTML= myArray[9];
+
+              }
+            }
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", reqListener);
+            setInterval(function()
+            {
+              //var dateNow = new Date();  // current time
+              oReq.open("GET", "/fetchmeter");
+              oReq.send();
+            }, 2000);
+    </script>
+    </body>
+</html>

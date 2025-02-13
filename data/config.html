@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+<script type="text/javascript">
+   function myConfirm ()
+     {
+        return confirm('Neustart ?')
+     }
+</script>
+
+<head>
+   <title>Config</title>
+   <meta content="width=device-width, initial-scale=1.0, user-scalable=yes" name="viewport">
+   <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<table>
+   <form action="config.html" method="POST">
+     <p>CONFIG-DATA</p>
+     <textarea autocorrect="off" name="saveconfig">%CONFIG%</textarea>
+     <p><button class="buttonlink" type="submit">CONFIG-save</button></p>
+   </form>
+   <p><a class="buttonlink" href="config.txt" download>CONFIG-download</a></p>
+   <form action="" method="POST" >
+         <input class="buttonsmallgreen" id="ws_on"  type="submit" name="ws_on" value="Lux WS-ON">
+         <input class="buttonsmallred"   id="ws_off" type="submit" name="ws_off" value="Lux WS-OFF">
+    </form>
+ 
+ 
+   <!--
+   <a class="buttonlink" href="index.html">back</a>
+   -->
+</table>
+<button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">Home</button>
+<button style="width: 100px;" type="button" class="image-btn" > </button>
+<button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+</body>
+</html>
