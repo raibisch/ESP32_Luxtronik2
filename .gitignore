@@ -8,6 +8,8 @@ ESP32_
 config.txt
 cred.txt
 *.intern
+upload
+
 
 
 
