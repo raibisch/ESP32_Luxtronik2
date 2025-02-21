@@ -21,11 +21,10 @@
   <!--
   <a class="buttonlink" href="setup.html">back</a>
   -->
-
   <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">Home</button>
   <button style="width: 100px;" type="button" class="image-btn" > </button>
   <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
-  
+
 <script>
   var stopscroll=false;
   
@@ -68,7 +67,7 @@
    }, false);
  
    source.addEventListener('logprint', function(e) {
-     console.log("logprint", e.data);
+     //console.log("logprint", e.data);
      addText(e.data);
    }, false);
   }

@@ -29,10 +29,20 @@ varSG_s_rule1=00,07,4,4,EPEX_LOWHOUR;
 varSG_s_rule2=13,23,4,4,EPEX_LOWHOUR;
 
 
-; for Shelly with Scripts
-;varSG_s_sg1 = 192.168.2.25/rpc/Script.Start?id=1
-;varSG_s_sg2 = 192.168.2.25/rpc/Script.Start?id=2
-;varSG_s_sg3 = 192.168.2.25/rpc/Script.Start?id=3
-;varSG_s_sg4 = 192.168.2.25/rpc/Script.Start?id=4
+; for my ABL Wallbox Project on Github:
+;varSG_s_sg1  = http://192.168.2.108/fetch?imax=0;
+;varSG_s_sg2  = http://192.168.2.108/fetch?imax=6;
+;varSG_s_sg3  = http://192.168.2.108/fetch?imax=10;
+;varSG_s_sg4  = http://192.168.2.108/fetch?imax=16;
 
+; for Tasmota devices: 'percent'-char is replaces with 'and'-char !!
+;varSG_s_sg1  = http://192.168.2.137/cm?cmnd=Backlog&20Power1&201&3BPower2&200; 1=on  2=off
+;varSG_s_sg2  = http://192.168.2.137/cm?cmnd=Backlog&20Power1&200&3BPower2&200; 1=off 2=off
+;varSG_s_sg3  = http://192.168.2.137/cm?cmnd=Backlog&20Power1&200&3BPower2&201; 1=off 2=on
+;varSG_s_sg4  = http://192.168.2.137/cm?cmnd=Backlog&20Power1&201&3BPower2&201; 1=on  2=on
 
+; for Shelly with Scripts:
+;varSG_s_sg1 = http://192.168.2.25/rpc/Script.Start?id=1;
+;varSG_s_sg2 = http://192.168.2.25/rpc/Script.Start?id=2;
+;varSG_s_sg3 = http://192.168.2.25/rpc/Script.Start?id=3;
+;varSG_s_sg4 = http://192.168.2.25/rpc/Script.Start?id=4;

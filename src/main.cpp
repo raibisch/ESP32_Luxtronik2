@@ -6,7 +6,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "esp_rom_gpio.h"
 #include <FS.h>
-#include <SPIFFS.h>                    
+#include <LittleFS.h>                    
 #include <WiFi.h>                     
 #include <ESPmDNS.h>                   
 #include <ESPAsyncWebServer.h>         
@@ -93,7 +93,7 @@ AsyncWebServer webserver(80);
 LuxWebsocket luxws;
 
 // Energy-Meter data from Tibber-Pulse
-SMLdecode smlmeter;
+SMLdecode smldecoder;
 WiFiClient wificlient; // for Tibber-Pulse
 
 // fetch String;
@@ -179,15 +179,15 @@ inline void initLED()
 }
 
 
-void inline initSPIFFS()
+void inline initLittleFS()
 {
-  if (!SPIFFS.begin())
+  if (!LittleFS.begin())
   {
-   debug_println("*** ERROR: SPIFFS Mount failed");
+   debug_println("*** ERROR: LittleFS Mount failed");
   } 
   else
   {
-   debug_println("* INFO: SPIFFS Mount succesfull");
+   debug_println("* INFO: LittleFS Mount succesfull");
   }
 }
  
@@ -277,7 +277,7 @@ class WPFileVarStore final: public FileVarStore
 
 WPFileVarStore varStore;
 
-void setSGreadyOutput(uint8_t mode);
+void setSGreadyOutput(uint8_t mode, uint8_t hour=24);
 //////////////////////////////////////////////////////
 /// @brief  expand Class "FileVarStore" with variables
 //////////////////////////////////////////////////////
@@ -312,7 +312,26 @@ class SmartGridEPEX : public SmartGrid
   }
 #endif
 
+
+  /// @brief your individual calculation for Enduserprice (here: Tibber DE)
+  /// @param rawprice 
+  /// @return 
+  float calcUserkWhPrice(float rawprice)
+  {
+    float f = (rawprice / 10.0) + (rawprice*varStore.varCOST_i_mwst/1000.0) +  varStore.varCOST_f_fix;
+    //debug_printf("Epex-price:%f\r\n",rawprice);
+    //debug_printf("User-price:%f\r\n",f);
+    return f;
+  }
+
+#ifdef CALC_HOUR_ENERGYPRICE
+  float getUserkWhFixPrice()
+  { 
+   return varStore.varCOST_f_kwh_fix;
+  }
+#endif
 };
+
 
 #define URL_ENERGY_CHARTS "api.energy-charts.info" 
 SmartGridEPEX smartgrid(URL_ENERGY_CHARTS);
@@ -358,14 +377,29 @@ bool sendSGreadyURL(String s)
   return false;
 }
 
-void setSGreadyOutput(uint8_t mode)
+
+/// @brief 
+/// @param mode SmartGrid-Mode
+/// @param h    hour to set SmartGrid-Mode
+void setSGreadyOutput(uint8_t mode, uint8_t hour)
 {
-  uint8_t h = ntpclient.getTimeInfo()->tm_hour;
-  debug_printf("SGreadyMode: %d\r\n",mode);
-  smartgrid.setHourVar1(h, mode); // override if value has changed
+  debug_printf("SetSGSGreadyOutput: %d hour:%d\r\n",mode, hour);
+  if (hour > 23)
+  { hour = ntpclient.getTimeInfo()->tm_hour;}
+
+#ifdef WEB_APP
+  AsyncWebLog.printf("SGreadyMode: %d  hour:%d\r\n",mode, hour);   
+#endif
+  smartgrid.setHourVar1(hour, mode); // override if value has changed
   String sURL;
   sURL.reserve(50);
-  AsyncWebLog.println("SGreadyMode:"+ String(mode));     
+  
+  // activate switch only for actual hour
+  if (hour != ntpclient.getTimeInfo()->tm_hour)
+  {
+    return;
+  }
+
 #ifdef SG_READY
   switch (mode)
   {
@@ -415,7 +449,9 @@ void setSGreadyOutput(uint8_t mode)
   }
 #endif
 }
-#endif
+// endif SG_READY
+#endif 
+
 
 static String readString(File s) 
 {
@@ -461,7 +497,7 @@ void initWiFi()
     //WiFi.setTxPower(WIFI_POWER_15dBm);// Test 15dB
     #endif
     #if defined DEBUG_PRINT && (defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
-    WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // decrease power over serial TTY-Adapter
+    //WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // decrease power over serial TTY-Adapter
     #endif
     int i = 0;
     delay(200);
@@ -513,25 +549,43 @@ void testWiFiReconnect()
 // -------------------- WEBSERVER -------------------------------------------
 // --------------------------------------------------------------------------
 
+
 /// @brief replace placeholder "%<variable>%" in HTML-Code
 /// @param var 
 /// @return String
 String setHtmlVar(const String& var)
 {
+  
   debug_print("func:setHtmlVar: ");
   debug_println(var);
   sFetch = "";
  
   if (var == "CONFIG") // read config.txt
   {
-    return varStore.GetBuffer();;
+    if (!LittleFS.exists("/config.txt")) 
+    {
+     return String(F("Error: File 'config.txt' not found!"));
+    }
+    // read "config.txt" 
+    fs::File configfile = LittleFS.open("/config.txt", "r");   
+    String sConfig;     
+    if (configfile) 
+    {
+      sConfig = readString(configfile);
+      configfile.close();
+    }
+    else 
+    { // no "config.txt"
+      sConfig = "";
+    }
+    return sConfig;
   } 
-  //else
+  else
   if (var== "DEVICEID")
   {
     return varStore.varDEVICE_s_name;
   }
-  //else
+  else
   if (var == "INFO")
   {
      sFetch =    "Version    :";
@@ -550,11 +604,275 @@ String setHtmlVar(const String& var)
      sFetch += ESP.getFreeHeap();
      sFetch += "\nMinFreeHeap:";
      sFetch += ESP.getMinFreeHeap();
+#ifdef SG_READY
+     sFetch += "\n\nEPEX NEXT DATE:";
+     sFetch +=  smartgrid.getWebDate(true); //sEPEXdateNext;
+     sFetch +=  "\n";
+     sFetch += smartgrid.getWebHourValueString(true);
+
+     sFetch += "\n\nEPEX TODAY:";
+     sFetch +=  "\n";
+     sFetch += smartgrid.getWebHourValueString(false); //sEPEXPriceToday;
+     //sFetch += "\n---\n\n";
+#endif
      return sFetch;
   }
+  else
+  if (var =="PRICE_LOW")
+  {
+     return String(varStore.varEPEX_i_low);      
+  }
+ else
+  if (var =="PRICE_HIGH")
+  {
+     return String(varStore.varEPEX_i_high);     
+  }
+  else
+  if (var == "COST_MWST")
+  {
+    return String(varStore.varCOST_i_mwst);
+  }
+  else
+  if (var == "COST_FIX")
+  {
+    return String(varStore.varCOST_f_fix);
+  }
+  else
+  if (var == "EPEX_ARRAY")
+  {
+    //return  smartgrid.getWebHourValueString(false);                      //EPEXPriceToday; // jetzt TODAY !!!
+    String ret = smartgrid.getWebHourValueString(false);
+    if (smartgrid.getWebHourValueString(true).length() > 0)
+    {
+     ret += ", ";
+     ret += smartgrid.getWebHourValueString(true);
+    }
+    return ret;
+  }
+  else
+  if (var == "EPEX_DATE")
+  {
+    String ret = smartgrid.getWebDate(false);
+    ret += "   -    ";
+    ret += smartgrid.getWebDate(true);
+    return ret;
+  }
+  else
+  if (var == "SGMODE")
+  {
+    //switch (SmartGridReadyStatus)
+    switch (smartgrid.getHourVar1(ntpclient.getTimeInfo()->tm_hour))
+    {
+    case 1:
+      return "sg1";
+      break;
+    case 2:
+      return "sg2";
+      break;
+    case 3:
+      return "sg3";
+      break;
+    case 4:
+      return "sg4";
+      break;
+    default:
+      break;
+    }
+    return "";
+  }
+  else
+  if (var == "SGHOURMODE")
+  {
+    for (size_t i = 0; i < SG_HOURSIZE; i++)
+    {
+      sFetch += smartgrid.getHourVar1(i); //String(smartgrid_hour[i].var1);
+      if (i < SG_HOURSIZE-1)
+      {
+        sFetch += ',';
+      }
+    }
+    //sFetch += '0';
+    return sFetch;
+  }
+#ifdef CALC_HOUR_ENERGYPRICE
+  else
+  if (var == "COSTINFO")
+  { 
+     sFetch =      "Flex(ct):";
+    sFetch += String((smartgrid.getUserkWhPrice(ntpclient.getTimeInfo()->tm_hour)),1);
+    sFetch +=   "  Fix (cnt):";
+    sFetch += String(smartgrid.getUserkWhFixPrice(),1);
+   
+    sFetch +=  " Hour-kWh : ";
+    sFetch +=  String((smldecoder.getInputkWh() /* valSML_kwh_in */ - smartgrid.hourprice_kwh_start),3);
 
-  return sFetch;
+    sFetch += "\r\n\r\nHour-flex:";
+    sFetch += String(smartgrid.getFlexprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
+  
+    sFetch +=   "  Day-flex :";
+    sFetch += String(smartgrid.getFlexprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
+    
+    sFetch +=    " Month-flex:";
+    sFetch += String(smartgrid.getFlexprice_month(ntpclient.getTimeInfo()->tm_mon),2);
+
+    //sFetch +=     "\r\nSum-flex     : ";
+    //sFetch += String(smartgrid.Flexprice_sum + smartgrid.getAktFlexprice(),2);
+
+    sFetch +=    "\r\nHour-fix: ";
+    sFetch += String(smartgrid.getFixprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
+
+    sFetch +=     "  Day-fix  :";
+    sFetch += String(smartgrid.getFixprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
+
+    sFetch +=     "  Month-fix:";
+    sFetch += String(smartgrid.getFixprice_month(ntpclient.getTimeInfo()->tm_mon) ,2);
+
+    //sFetch +=     "\r\nSum-fix     : ";
+    //sFetch += String(smartgrid.fixprice_sum + smartgrid.akt_fixprice,2);
+    sFetch += "";
+
+    return sFetch;
+  }
+
+  else
+  if (var == "PRICE_FIX")
+  {
+     return String(smartgrid.getUserkWhFixPrice(),1);
+  }
+
+  else 
+  if  (var == "PRICE_HOUR_FLEX")
+  {
+     for (size_t i = 0; i < 24; i++)
+     {
+      //sFetch += String(smartgrid.flexprice_hour[i],2);
+      sFetch += String(smartgrid.getFlexprice_hour(i),2);
+      if (i < 23)
+      {
+       sFetch += ", ";
+      }
+     }
+     debug_println(sFetch);
+     return sFetch;
+  }
+  else
+  if (var == "PRICE_HOUR_FIX")
+  {
+     for (size_t i = 0; i <24; i++)
+     {
+      //sFetch += String(smartgrid.fixprice_hour[i],2);
+      sFetch += String(smartgrid.getFixprice_hour(i),2);
+      if (i < 23)
+      {
+       sFetch += ", ";
+      }
+     }
+     return sFetch;
+  }
+  else
+  if (var == "PRICE_MONTHDAY_FLEX")
+  {
+     for (size_t i = 1; i < 32; i++)
+     {
+      //sFetch += String(smartgrid.flexprice_monthday[i],2);
+      sFetch += String(smartgrid.getFlexprice_monthday(i),2);
+      if (i < 31)
+      {
+       sFetch += ", ";
+      }
+     }
+     return sFetch;
+  }
+  else
+  if (var == "PRICE_MONTHDAY_FIX")
+  {
+     for (size_t i = 1; i < 32; i++) // begin with "1" !!
+     {
+      //sFetch += String(smartgrid.fixprice_monthday[i],2);
+      sFetch += String(smartgrid.getFixprice_monthday(i),2);
+      if (i < 31)
+      {
+       sFetch += ", ";
+      }
+     }
+     return sFetch;
+  }
+  else
+  if (var == "PRICE_MONTH_FLEX")
+  {
+     for (size_t i = 0; i < 12; i++)
+     {
+      //sFetch += String(smartgrid.flexprice_month[i],2);
+      sFetch += String(smartgrid.getFlexprice_month(i),2);
+      if (i < 11)
+      {
+       sFetch += ", ";
+      }
+     }
+     return sFetch;
+  }
+  else
+  if (var == "PRICE_MONTH_FIX")
+  {
+     for (size_t i = 0; i < 12; i++)
+     {
+      //sFetch += String(smartgrid.fixprice_month[i],2);
+      sFetch += String(smartgrid.getFixprice_month(i),2);
+      if (i < 11)
+      {
+       sFetch += ", ";
+      }
+     }
+     return sFetch;
+  }
+  else
+  if (var == "COST_AKT_MONTH") // read config.txt
+  {
+    if (!LittleFS.exists("/cost_akt_month.txt")) 
+    {
+     return String(F("Error: File 'cost_akt_month.txt' not found!"));
+    }
+    // read "config.txt" 
+    fs::File cfile = LittleFS.open("/cost_akt_month.txt", "r");   
+    String sData;     
+    if (cfile) 
+    {
+      sData = readString(cfile);
+      cfile.close();
+    }
+    else 
+    { // no "config.txt"
+      sData = "";
+    }
+    return sData;
+  }
+  else
+  if (var == "COST_AKT_YEAR") // read config.txt
+  {
+    if (!LittleFS.exists("/cost_akt_year.txt")) 
+    {
+     return String(F("Error: File 'cost_akt_year.txt' not found!"));
+    }
+    // read "config.txt" 
+    fs::File cfile = LittleFS.open("/cost_akt_year.txt", "r");   
+    String sData;     
+    if (cfile) 
+    {
+      sData = readString(cfile);
+      cfile.close();
+    }
+    else 
+    { // no "config.txt"
+      sData = "";
+    }
+    return sData;
+  }
+  #endif
+  
+  return "";
 }
+
+
 
 void notFound(AsyncWebServerRequest *request) 
 {
@@ -563,56 +881,87 @@ void notFound(AsyncWebServerRequest *request)
 
 void initWebServer()
 { 
-  sFetch.reserve(180);
-
+  // --------------- Basis Seiten:----------------------------------
   //Route for root / web page
   webserver.on("/",          HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-   request->send(SPIFFS, "/index.html", String(), false, setHtmlVar);
+  {https://
+   request->send(LittleFS, "/index.html", String(), false, setHtmlVar);
   });
   //Route for root /index web page
   webserver.on("/index.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/index.html", String(), false, setHtmlVar);
+   request->send(LittleFS, "/index.html", String(), false, setHtmlVar);
   });
  
+  //Route for setup web page
+  webserver.on("/setup.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/setup.html", String(), false, setHtmlVar);
+  });
   //Route for config web page
   webserver.on("/config.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/config.html", String(), false, setHtmlVar);
+   request->send(LittleFS, "/config.html", String(), false, setHtmlVar);
   });
   //Route for Info-page
   webserver.on("/info.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   String s = (String)
-   varStore.SetVarString("varLogCount_s_val", ntpclient.getTimeString());
-   request->send(SPIFFS, "/info.html", String(), false, setHtmlVar);
+   request->send(LittleFS, "/info.html", String(), false, setHtmlVar);
   });
 
+  // config.txt GET
+  webserver.on("/reboot.html", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(404, "text/plain", "RESTART !");
+    delay(300);
+    //saveHistory();
+    ESP.restart();
+  });
+  //----------------------------------------------------------------------
 
   //Route for Luxtronik values
   webserver.on("/luxtronik.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
    luxws.setpolling(true); // POLLING ON !
-   request->send(SPIFFS, "/luxtronik.html", String(), false, setHtmlVar);
+   request->send(LittleFS, "/luxtronik.html", String(), false, setHtmlVar);
   });
 
-
-   //Route for setup web page
+  //Route for setup web page
   webserver.on("/meter.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/meter.html", String(), false, setHtmlVar);
-  });
-  //Route for setup web page
-  webserver.on("/smartgrid.html",          HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-   request->send(SPIFFS, "/smartgrid.html", String(), false, setHtmlVar);
+   request->send(LittleFS, "/meter.html", String(), false, setHtmlVar);
   });
   
+
+  //.. some code for the navigation icons
+  webserver.on("/home.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/home.png", String(), false);
+  });
+
+  webserver.on("/file-list.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/file-list.png", String(), false);
+  });
+
+  webserver.on("/settings.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/settings.png", String(), false);
+  });
+#ifdef SG_READY
+  webserver.on("/smartgrid.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(LittleFS, "/smartgrid.html", String(), false, setHtmlVar);
+  });
   webserver.on("/sgready.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/sgready.html", String(), false, setHtmlVar);
+    request->send(LittleFS, "/sgready.html", String(), false, setHtmlVar);
   });
+  webserver.on("/reload.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/reload.png", String(), false);
+  });
+#endif
   
   webserver.on("/fetch", HTTP_GET, [](AsyncWebServerRequest *request)
   {
@@ -640,30 +989,37 @@ void initWebServer()
     request->send(200, "text/plain", sFetch);  
   });
 
+
+  // Route for style-sheet
+  webserver.on("/style.css",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(LittleFS, "/style.css", String(), false);
+  });
+
   // App-Icons
   webserver.on("/current.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/current.png", String(), false);
+   request->send(LittleFS, "/current.png", String(), false);
   });
   webserver.on("/sg.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/sg.png", String(), false);
+   request->send(LittleFS, "/sg.png", String(), false);
   });
   webserver.on("/sgready.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/sgready.png", String(), false);
+   request->send(LittleFS, "/sgready.png", String(), false);
   });
   webserver.on("/heatpump.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/heatpump.png", String(), false);
+   request->send(LittleFS, "/heatpump.png", String(), false);
   });
    webserver.on("/luxtronik.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/luxtronik.png", String(), false);
+   request->send(LittleFS, "/luxtronik.png", String(), false);
   });
   webserver.on("/homeauto.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(SPIFFS, "/homeauto.png", String(), false);
+   request->send(LittleFS, "/homeauto.png", String(), false);
   });
 
   // fetch GET
@@ -684,11 +1040,11 @@ void initWebServer()
     sFetch+= ',';
     sFetch+= valDS100_mV;         //6
     sFetch+= ',';
-    sFetch+= smlmeter.getWatt();  // 7
+    sFetch+= smldecoder.getWatt();  // 7
     sFetch+= ',';
-    sFetch+= smlmeter.getInputkWh(); // 8
+    sFetch+= smldecoder.getInputkWh(); // 8
     sFetch+= ',';
-    sFetch+= smlmeter.getOutputkWh(); // 9
+    sFetch+= smldecoder.getOutputkWh(); // 9
     
     request->send(200, "text/plain", sFetch);
     //debug_println("server.on /fetchmeter: "+ s);
@@ -696,29 +1052,74 @@ void initWebServer()
 
 
   // -------------------- POST --------------------------------------------------
-  // config.html POST
-  webserver.on("/config.html",          HTTP_POST, [](AsyncWebServerRequest *request)
-  {
-   uint8_t i = 0;
-   String s  = request->arg(i);
-   //debug_printf("Argument: %s, value:%s", request->argName(0), request->arg(i);
-  
-   if (request->argName(0) == "saveconfig")
+   // sgready.html POST
+   #ifdef SG_READY
+   webserver.on("/sgready.html",          HTTP_POST, [](AsyncWebServerRequest *request)
    {
-       varStore.Save(s);
-       //varStore.Load();
-   }
-   request->send(SPIFFS, "/config.html", String(), false, setHtmlVar);
-  });
-  
-   // init Webserver for libs
+    uint8_t i = 0;
+    int iVal  = request->arg(i).toInt();
+    const String sArg = request->argName(0);
+    debug_printf(      "sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
+    AsyncWebLog.printf("sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
+ 
+    if (sArg == "sg1")
+    {
+       setSGreadyOutput(1, iVal);
+    }
+    else
+    if (sArg == "sg2")
+    {
+       setSGreadyOutput(2, iVal);
+    }
+    else
+    if (sArg == "sg3")
+    {
+       setSGreadyOutput(3, iVal);
+    }
+    else
+    if (sArg == "sg4")
+    {
+       setSGreadyOutput(4, iVal);
+    }
+    else 
+    if (sArg == "sgsreload")
+    {
+     debug_println("sgsreload");
+     smartgrid.getAppRules();   // old: setSmartGridRules(); // calulate rules from config
+     smartgrid.setAppOutputFromRules(ntpclient.getTimeInfo()->tm_hour);
+    }
+
+    request->send(LittleFS, "/sgready.html", String(), false, setHtmlVar); 
+   });
+   #endif      
+
+    // config.html POST
+    webserver.on("/config.html",          HTTP_POST, [](AsyncWebServerRequest *request)
+    {
+     //debug_println("Argument: " + request->argName(0));
+     //debug_println("Value: ");
+     uint8_t i = 0;
+     String s  = request->arg(i);
+     debug_println(s);
+     if (request->argName(0) == "saveconfig")
+     {
+         varStore.Save(s);
+         varStore.Load();
+#ifdef SG_READY
+         smartgrid.refreshWebData(true); // new: 30.10.2024
+         smartgrid.getAppRules();   // old: setSmartGridRules(); // calulate rules from config
+#endif
+     }
+     request->send(LittleFS, "/config.html", String(), false, setHtmlVar);
+    });
+       
+  // init Webserver 
+  sFetch.reserve(150);
   AsyncWebLog.begin(&webserver);
   AsyncWebOTA.begin(&webserver);
-  AsyncWebApp.begin(&webserver);
-
   webserver.onNotFound(notFound);
   webserver.begin();
-}
+  }
 #endif
 
 ////////////////////////////////////////////////////
@@ -731,19 +1132,17 @@ void setup()
   Serial.println("***START***");
   delay(500);
   initLED();
-#ifdef RELAY_OUTPUT
   initRelay();
-#endif
-  initSPIFFS();
+  initLittleFS();
   initFileVarStore(); 
   setcolor('b'); // blue
   initWiFi();
   initWebServer(); 
   setLED(0);
-  delay(1000);
-
+  delay(500);
+  smartgrid.init();
 #ifdef SML_TIBBER
-  smlmeter.init(varStore.varSML_s_url.c_str(), varStore.varSML_s_user.c_str(), varStore.varSML_s_password.c_str());
+  smldecoder.init(varStore.varSML_s_url.c_str(), varStore.varSML_s_user.c_str(), varStore.varSML_s_password.c_str());
 #endif
  #ifdef DS100_MODBUS
   DS100Init();
@@ -767,10 +1166,14 @@ void loop()
     debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
     AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
 #ifdef SML_TIBBER
-    smlmeter.read(); 
+    smldecoder.read(); 
 #endif  
 #ifdef DS100_MODBUS
     DS100read();
+#endif
+#ifdef SG_READY
+    time_t tt = ntpclient.getUnixTime();
+    smartgrid.loop(&tt);
 #endif
     if (looptm->tm_hour == 0 && looptm->tm_min ==0 && looptm->tm_sec < 7)
     { 
@@ -783,20 +1186,11 @@ void loop()
   
     if (luxws.isConnected())
     {
-      AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n",  luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
+      AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
       AsyncWebLog.printf("WP-State:             \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
-      /*
-      AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::LUX_ENERGY_OUT_HE));
-      AsyncWebLog.printf("Luxtronik Aussentemp. \t %02.1f\r\n", luxws.getvalf(LUX_TEMP_AT_IST));
-      AsyncWebLog.printf("COP-SUM:              \t %02.1f\r\n", luxws.getvalf(LUX_VAL_TYPE::LUX_COP_SUM));
-      AsyncWebLog.printf("COP-DAY_HEIZ:         \t %02.1f\r\n", luxws.getvalf(LUX_VAL_TYPE::LUX_COP_DAY_HE));
-      AsyncWebLog.printf("RL SOLL - IST:        \t %02.1f\r\n", luxws.getvalf(LUX_VAL_TYPE::LUX_TEMP_RL_SOLL) - luxws.getvalf(LUX_VAL_TYPE::LUX_TEMP_RL_IST));
-      AsyncWebLog.printf("VL - RL:              \t %02.1f\r\n", luxws.getvalf(LUX_VAL_TYPE::LUX_TEMP_VL_IST) - luxws.getvalf(LUX_VAL_TYPE::LUX_TEMP_RL_IST));
-      AsyncWebLog.printf("Abtaubedarf           \t %02.1f\r\n", luxws.getvalf(LUX_VAL_TYPE::LUX_DEFROST_PERCENT));
-      AsyncWebLog.printf("Watt                  \t %d \r\n",    smlmeter.getWatt());
-      AsyncWebLog.printf("1.8.0 IN -kWh         \t %05.4f \r\n",smlmeter.getInputkWh());
-      AsyncWebLog.printf("2.8.0 OUT-kwH         \t %05.4f \r\n",smlmeter.getOutputkWh());
-      */
+      AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
+      AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
+  
     }
     else
     {
@@ -804,6 +1198,7 @@ void loop()
     }
   }
 
+  
   // fast blink
   static int c4 = 0;
   if (millis() - TimerFastDuration > TimerFast)

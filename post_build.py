@@ -3,8 +3,7 @@ from shutil import copyfile
 Import("env","projenv") # type: ignore
 
 FIRMWARE_BIN = "$BUILD_DIR/${PROGNAME}.bin"
-SPIFFS_BIN =  "$BUILD_DIR/spiffs.bin"
-
+SPIFFS_BIN =  "$BUILD_DIR/littlefs.bin"
 def copy_firmware(source, target, env):
      file1 = target[0].get_abspath()
      file2 = env["PROJECT_DIR"] + "/upload/firmware.bin"
