@@ -16,23 +16,30 @@
         <meta name="theme-color" content="#ffffff">
     </head>
     <body>
-      <h2>%DEVICEID%</h2>
+      <h3 id="HEADLINE">%DEVICEID%</h3>
+    
       <div class="outerring" id="RING_ID">
        <div class="innerring"></div>
-       <div id="KW_IN" class="ringtext_value">xxx.xxx</div>
-       <div class="ringtext_unit">[kW-In]</div>
-       <div id="COP_AKT" class="ringtext_value2">xx.x</div>
-       <div class="ringtext_unit2">[COP-Akt.]</div>
-       <div class="ringtext_time" id="TIME">--:--</div>
-       <div class="ringtext_status1" id="WP_STATUS">WP-AUS</div>
+        <div class="temp_room"><img src="temp_inside.png"><span id="TEMP_ROOM">--.-</span></div>
+        <div class="temp_room"> </div>
+       <div>
+        <div id="ICON_STATUS" class="icon_status" onclick="window.location.href='http://192.168.2.23/#/Devices/79/Log'" ><img id="ICON_IMG" src="poweroff.png"></div>
+        <div id="KW_IN" class="ringtext_value"  onclick="window.location.href='http://192.168.2.23/#/Dashboard'">xx.xxx</div>
+        <div id="COP_AKT" class="ringtext_value2">xx.x</div>
+       </div>
+       <div>
+        <div class="value_status" id="WP_STATUS">--</div>
+        <div class="ringtext_unit">[kW-In]</div>
+        <div class="ringtext_unit2">[COP-Akt.]</div>
+       </div>
        <div class="ringtext_status2" id="SGR_STATUS">--</div>
      </div>
      <table>
             <tr>
-              <td id="WW_IST">--</td>
-              <td id="VL_IST">--</td>
-              <td id="RL_IST">--</td>
-              <td id="AT_IST">--</td>
+              <td id="WW_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/84/Log'">--</td>
+              <td id="VL_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/79/Log'">--</td>
+              <td id="RL_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/80/Log'">--</td>
+              <td id="AT_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/82/Log'">--</td>
             </tr>
             <tr>
               <th>WW[&#8451;]</th>
@@ -44,7 +51,7 @@
               <td id="HUP_LH">--</td>
               <td id="RL_VL_IST">--</td>
               <td id="RLSOLL_RLIST">--</td>
-              <td id="RL_SOLL">--</td>
+              <td id="RL_SOLL" onclick="window.location.href='http://192.168.2.23/#/Devices/81/Log'">--</td>
             </tr>
             <tr>
               <th>HP[l/h]</th>
@@ -82,12 +89,17 @@
     <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
     <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Luxtronik</button>
     <button type="button" class="image-btn" onclick="window.location.href='sgready.html'"><img src="sgready.png">SGready</button> 
-    <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
     <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
-     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+    <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
+    <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
          
     <script type="text/javascript">
-            //var t = new Date();
+            
+            function gotoLuxtronik()
+            {
+              // noch nicht realisiert
+            }
+           
             function reqListener ()
             {
               var myResponse = this.responseText;
@@ -98,14 +110,51 @@
               //console.log(myArray);
               sgrStatus = String(myArray[1]);
               wpStatus = "--";
+              
+              // Test
+              //document.getElementById("HEADLINE").innerHTML = '%DEVICEID%' + '&emsp;' + '11:20';
+
               if (myArray[1] != null)
               {
-               document.getElementById('TIME').innerHTML = myArray[0];
+               document.getElementById('HEADLINE').innerHTML = '%DEVICEID%' + '&emsp;' + myArray[0];
                document.getElementById('SGR_STATUS').innerHTML  = "SGready-Mode:" + sgrStatus;
-               wpStatus = myArray[3]; // status Heatpump
-
+               document.getElementById('TEMP_ROOM').textContent = myArray[37];
+               
+              // -------------------------
+               // Test
+              //wpStatus = 'Hei'
+              var wpStatus = String(myArray[3]); // status Heatpump
+              var wpIcon = 'poweroff.png';
+              if (wpStatus.length <2)
+              {
+                document.getElementById('RING_ID').style.background = 'gray';
+                wpStatus = 'OFF';
+              }
+             ;
+              if (wpStatus.indexOf('Hei') >=0)
+              {
+                wpIcon = 'radiator.png';
+                document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'red';
+              }
+              else if (wpStatus.indexOf('AB') >=0)
+              {
+                wpIcon = 'defrost.png';
+                document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'blue';
+              }
+              else if (wpStatus.indexOf('W') >= 0)
+              { 
+                wpIcon = 'hotwater.png';
+                document.getElementById('RING_ID').className = "outerring_blink";
+                document.getElementById('RING_ID').style.background = 'orange';
+              }
+              document.getElementById('WP_STATUS').innerHTML = wpStatus;
+              document.getElementById('ICON_IMG').src = wpIcon;
+              // -----------------------
+              
                document.getElementById('KW_IN').innerHTML   = myArray[2] ;
-               document.getElementById("WP_STATUS").innerHTML = myArray[3];
+             
                document.getElementById('WW_IST').innerHTML  = myArray[4]; 
                document.getElementById('AT_IST').innerHTML  = myArray[5];
                document.getElementById('RL_IST').innerHTML  = myArray[6];
@@ -149,7 +198,7 @@
                }
               }
              
-              // example : https://code-boxx.com/change-override-css-with-javascript
+              /*
               if (sgrStatus.startsWith('1'))
               {
                 //document.getElementById('SGR_STATUS').style.color = 'blue';
@@ -184,6 +233,7 @@
                 document.getElementById('RING_ID').className = "outerring_blink";
                 document.getElementById('RING_ID').style.background = 'black';
               }
+              */arguments
             }
             var oReq = new XMLHttpRequest();
             oReq.addEventListener("load", reqListener);

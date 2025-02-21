@@ -74,17 +74,27 @@
           <th>Vent. RPM</th>
         </tr>
         <tr>
-          <td id="EEV_PERCENT">--</td>
+          <td id="EEV_C_PERCENT">--</td> 
+          <td id="EEV_H_PERCENT">--</td>
+          <td id="VD_RPM_SOLL">--</td>
           <td id="DEFROST_PERCENT">--</td>
-          <td id="DEFROST_TIME">--</td>
-          <td id="VD_ONTIME">--</td>
         </tr>
         <tr>
-          <th>EEV&#037;</th>
+          <th>EEV Kueh.&#037;</th>
+          <th>EEV Heiz.&#037;</th>
+          <th>VD RPM-SOLL</th>
           <th>Abtaubed.&#037;</th>
-          <th>letz. Abtau.</th>
-          <th>VD Laufzeit</th>
         </tr>
+    </table>
+    <table>
+      <tr>
+        <td id="VD_ONTIME">--</td>
+        <td id="DEFROST_TIME">--</td>
+      </tr>
+      <tr>
+        <th>VD Laufzeit</th>
+        <th>letz. Abtau.</th>
+      </tr>
     </table>
     <table> 
       <caption>Leistung: [kW]</caption>
@@ -144,7 +154,8 @@
       //const name = document.querySelector(".name"); // '.'' = class '#'' = id
       function luxrequest()
       {
-        window.location.href = "http://192.168.2.101";
+        luxurl = "http://" + "%LUX_IP%";
+        window.location.href = luxurl;
       }
 
      function gotoluxtronik() 
@@ -168,7 +179,7 @@
       
         //console.log(myArray);
         sgrStatus = String(myArray[1]);
-        if (myArray[1] != null)
+        if (myArray[2] != null)
         {
          // Temp
          document.getElementById('WW_IST').innerHTML  = myArray[4]; 
@@ -178,11 +189,11 @@
 
          document.getElementById('RL_SOLL').innerHTML = myArray[7];
          document.getElementById('VL_IST').innerHTML  = myArray[8];
-         document.getElementById('WQ_IN').innerHTML   = myArray[31]
+         document.getElementById('WQ_IN').innerHTML   = myArray[32]
          ;
-         document.getElementById('VD_IN').innerHTML   = myArray[25];
-         document.getElementById('VD_HEIZ_TEMP').innerHTML   = myArray[35];
-         document.getElementById('VD_HEIZ_ON').innerHTML    = myArray[23];
+         document.getElementById('VD_IN').innerHTML       = myArray[25];
+         document.getElementById('VD_HEIZ_TEMP').innerHTML= myArray[35];
+         document.getElementById('VD_HEIZ_ON').innerHTML  = myArray[23];
 
          rldelta = (myArray[6]) - (myArray[7]);
          document.getElementById('RLSOLL_DIV').innerHTML = rldelta.toFixed(2);
@@ -199,11 +210,13 @@
          document.getElementById('VD_ND').innerHTML  = myArray[26]; 
          document.getElementById('VD_HD').innerHTML  = myArray[27];
          document.getElementById('VD_RPM').innerHTML  = myArray[24];
-         document.getElementById('VE_RPM').innerHTML = myArray[30];
+         document.getElementById('VD_RPM_SOLL').innerHTML = myArray[36];
+         document.getElementById('VE_RPM').innerHTML = myArray[31];
 
-         document.getElementById('EEV_PERCENT').innerHTML     = myArray[33]; 
-         document.getElementById('DEFROST_PERCENT').innerHTML = myArray[29];
-         document.getElementById('DEFROST_TIME').innerHTML    = myArray[32];
+         document.getElementById('EEV_H_PERCENT').innerHTML   = myArray[28]; 
+         document.getElementById('EEV_C_PERCENT').innerHTML   = myArray[29]; 
+         document.getElementById('DEFROST_PERCENT').innerHTML = myArray[30];
+         document.getElementById('DEFROST_TIME').innerHTML    = myArray[33];
          document.getElementById('VD_ONTIME').innerHTML       = myArray[34];
          
          // Power

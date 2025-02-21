@@ -28,15 +28,14 @@ uint32_t valDS100_L3_KWH = 0;
 
 // read the values direct with an RS485-converter from die "DS100" meter with modbus interface
 // REMARK: write your own routine or addapt this, if you need this values !!!
-// NEEDS: extra Hardware RS485-converter !!!
+// NEEDS: extra hardware RS485 converter !!!
 /// @brief Init Electrical Meter communication over RS485
 inline void DS100Init()
 {
     Serial_Modbus.begin(9600, SERIAL_8N1, MODBUS_RXD_GPIO, MODBUS_TXT_GPIO);
-    delay(1);
-    while(Serial_Modbus.available())
-    {Serial_Modbus.read();}
-    debug_println("Modbus init OK!");
+    //while(Serial_Modbus.available())
+    //{Serial_Modbus.read();}
+    debug_println("Modbus init");
 }
     
 //char HexStr[03];
@@ -52,9 +51,9 @@ uint32_t DS100GetValue(const char* tx)
   //sHex+=HexStr;
   Serial_Modbus.write(tx[i]);
  }
- Serial_Modbus.flush(true);
+ //Serial_Modbus.flush(true);
  //AsyncWebLog.println("TX:" + sHex);
- delay(150);
+ delay(150); // wait for answer
  uint8_t rxix=0;
  rxix = 0;
  while (Serial_Modbus.available()) 
@@ -85,5 +84,6 @@ inline void DS100read()
     valDS100_L1_KWH = DS100GetValue(DS100_TX_GET_L1_KWH); 
     valDS100_L2_W   = DS100GetValue(DS100_TX_GET_L2_W);
     valDS100_L2_KWH = DS100GetValue(DS100_TX_GET_L2_KWH); 
+
 }
 #endif

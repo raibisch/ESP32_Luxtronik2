@@ -24,7 +24,9 @@ void inline initRelay()
   pinMode(RELAY_2, OUTPUT);
   digitalWrite(RELAY_1, LOW);
   digitalWrite(RELAY_2, LOW);
-#elseifdef ESP32_RELAY_X4
+#endif
+
+#ifdef ESP32_RELAY_X4
   // ESP_RELAY_X4
   // we need only RELAY_1 and RELAY_2 for SGready
   pinMode(RELAY_1, OUTPUT);
@@ -48,7 +50,7 @@ void inline initRelay()
 /// @param on_off true..false
 void setRelay(uint8_t no, bool on_off)
 {
-#if defined ESP32_RELAY_X2 || defined ESP_RELAY_X4
+#if (defined ESP32_RELAY_X2) || (defined ESP32_RELAY_X4)
   switch (no)
   {
    case 1:
@@ -60,7 +62,5 @@ void setRelay(uint8_t no, bool on_off)
    default:
      break;
   }
-#else
- /* for other boards witout relais output*/
- #endif
+#endif
 }

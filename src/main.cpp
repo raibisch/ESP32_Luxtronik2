@@ -5,27 +5,33 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_rom_gpio.h"
-#include <FS.h>
-#include <LittleFS.h>                    
+#include <FS.h>                  
 #include <WiFi.h>                     
 #include <ESPmDNS.h>                   
 #include <ESPAsyncWebServer.h>         
 #include <HTTPClient.h>                 
 #include <base64.h>                    
-#include <Preferences.h>
+//#include <Preferences.h>
+
+// my includes
+#include "fs_switch.h"   // switch between SPIFFS and LittleFS
+#include "debug_print.h" // debug_print macros
 
 // my libs
 #include "FileVarStore.h"
+#include "AsyncWebLog.h" // auch ohne WEB_APP dann wird auf Serial1 umgeleitet
+
 #ifdef WEB_APP
-#include "AsyncWebLog.h"
+//#include "AsyncWebApp.h" todo: noch integrieren
 #include "AsyncWebOTA.h"
 #endif
+
 #include "ESP32ntp.h"
 #include "XPString.h"
 #include "SmartGrid.h"
 #include "LuxWebsocket.h"
 #include "SMLdecode.h"
-#include "AsyncWebApp.h"
+#include "PicoMQTT.h"
 
 //external libs
 #ifdef SML_JSON
@@ -37,29 +43,12 @@
 #include "driver/temp_sensor.h"
 #endif
 
-// now set in platformio.ini
-//#define DEBUG_PRINT 1   
-#ifdef DEBUG_PRINT
-#pragma message("Info : DEBUG_PRINT=1")
-#define debug_begin(...) Serial.begin(__VA_ARGS__);
-#define debug_print(...) Serial.print(__VA_ARGS__);
-#define debug_write(...) Serial.write(__VA_ARGS__);
-#define debug_println(...) Serial.println(__VA_ARGS__);
-#define debug_printf(...) Serial.printf(__VA_ARGS__);
-#else
-#define debug_begin(...)
-#define debug_print(...)
-#define debug_printf(...)
-#define debug_write(...)
-#define debug_println(...)
-#endif
-
 #include "relay.h"
 #include "ds100.h"
 
 #ifdef ESP32_DEVKIT1
 #pragma message("Info : ESP32_DEVKIT")
-#ifndef ESP32_RELAY_X4
+#if !(defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
 #define LED_GPIO 2
 #endif
 #endif
@@ -79,7 +68,7 @@
  #define LED_GPIO 10
 #endif
 
-const char* SYS_Version = "V 0.9.2";
+const char* SYS_Version = "V 0.9.4";
 const char* SYS_CompileTime =  __DATE__;
 static String  SYS_IP = "0.0.0.0";
 
@@ -88,13 +77,20 @@ static String  SYS_IP = "0.0.0.0";
 AsyncWebServer webserver(80);
 #endif
 
+#ifdef LUX_WEBSERVICE
+LuxWebsocket luxws; // Luxtronik Webservice
+#endif
 
-//Luxtronik
-LuxWebsocket luxws;
-
+#if defined SML_TIBBER || defined SML_TASMOTA
 // Energy-Meter data from Tibber-Pulse
 SMLdecode smldecoder;
-WiFiClient wificlient; // for Tibber-Pulse
+#endif
+
+WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-Interface
+
+#ifdef MQTT_CLIENT
+PicoMQTT::Client mqtt("192.168.2.22");
+#endif
 
 // fetch String;
 static String sFetch;
@@ -117,7 +113,6 @@ static char neopixel_color = 'w';
 #else
 #define setcolor(...)
 #endif
-
 
 
 /// @brief  set builtin LED
@@ -178,16 +173,36 @@ inline void initLED()
   setLED(1);
 }
 
-
-void inline initLittleFS()
+#ifdef MQTT_CLIENT
+char _buf[30];
+XPString s(_buf,30);
+char _bufval[6];
+XPString sval(_bufval,6);
+void inline initMQTT()
 {
-  if (!LittleFS.begin())
+  // Subscribe to a topic and attach a callback
+  mqtt.subscribe("shellies/status/temperature:0", [](const char * topic, const char * payload)
   {
-   debug_println("*** ERROR: LittleFS Mount failed");
+    debug_printf("MQTT: '%s' = %s\n", topic, payload); 
+    AsyncWebLog.printf("MQTT: %s: %s\r\n", topic, payload);
+    s = payload;
+    s.substringBeetween(sval,"tC",4,",",0);
+    AsyncWebLog.printf("Room-Temp: (%s) \r\n", sval.c_str());
+    luxws.tempRoom = atof(sval);
+  });
+  mqtt.begin();
+}
+#endif
+
+void inline initFS()
+{
+  if (!myFS.begin())
+  {
+   debug_println("*** ERROR:FS Mount failed");
   } 
   else
   {
-   debug_println("* INFO: LittleFS Mount succesfull");
+   debug_println("* INFO:FS Mount succesfull");
   }
 }
  
@@ -207,11 +222,12 @@ class WPFileVarStore final: public FileVarStore
 
    String varLUX_s_url  = "192.168.2.101";
    String varLUX_s_password = "";
-
+#if defined EPEX_PRICE || defined SG_READY
    int    varEPEX_i_low     = 22;   // cent per kwh
    int    varEPEX_i_high    = 26;   // cent per kwh
    int    varCOST_i_mwst    = 19;   // MwSt (=tax percent) of hour price
    float  varCOST_f_fix     = 17.2; // fix part of hour price in cent
+#endif
 #if defined SML_TASMOTA || defined SML_TIBBER
    String varSML_s_url      = "";
    String varSML_s_user     = "";
@@ -277,7 +293,11 @@ class WPFileVarStore final: public FileVarStore
 
 WPFileVarStore varStore;
 
+#ifdef SG_READY
 void setSGreadyOutput(uint8_t mode, uint8_t hour=24);
+#endif
+
+#if defined EPEX_PRICE || defined SG_READY
 //////////////////////////////////////////////////////
 /// @brief  expand Class "FileVarStore" with variables
 //////////////////////////////////////////////////////
@@ -286,30 +306,37 @@ class SmartGridEPEX : public SmartGrid
   public:
   SmartGridEPEX(const char* epex) : SmartGrid(epex) {}
 
+
 #ifndef M5_COREINK
+  /// @brief 
+  /// @return 
   bool getAppRules() final
   {
+
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
         setHourVar1(i, DEFAULT_SGREADY_MODE);
     }
+#ifdef SG_READY
     calcSmartGridfromConfig(varStore.varSG_s_rule1.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule2.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule3.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule4.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule5.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule6.c_str());  
-   return true;;
+#endif
+   return true;
   }
 
+#ifdef SG_READY
   /// @brief set hour output for Application
   /// @param hour 
   void setAppOutputFromRules(uint8_t hour) final
   {
-#ifdef SG_READY
+
     setSGreadyOutput(this->getHourVar1(hour));
-#endif
   }
+#endif
 #endif
 
 
@@ -335,6 +362,7 @@ class SmartGridEPEX : public SmartGrid
 
 #define URL_ENERGY_CHARTS "api.energy-charts.info" 
 SmartGridEPEX smartgrid(URL_ENERGY_CHARTS);
+#endif
 
 #ifdef SG_READY
 /// @brief  Post a REST message to a web-device instaed of switching a Relais-Output-Pin
@@ -346,13 +374,14 @@ bool sendSGreadyURL(String s)
   
   if (s.startsWith("http:") == false)
   {
-    AsyncWebLog.println("No HTTP sendSGreadString:" + s);
+    AsyncWebLog.printf("No HTTP sendSGreadString:  %s\r\n" ,s.c_str());
      return false;   
   }
 
-  AsyncWebLog.println("sendSGreadURL:" + s);
+  AsyncWebLog.printf("sendSGreadURL: %s\r\n", s.c_str());
   int getlength;
   s.replace('#','%'); // because % % is used as html insert marker
+  http.setConnectTimeout(500); // 16.02.2025 fix: if url not found or down
   http.begin(wificlient, s);
   int httpResponseCode = http.GET();
   
@@ -361,15 +390,15 @@ bool sendSGreadyURL(String s)
     getlength = http.getSize();
     if (getlength > 0)
     {
-      AsyncWebLog.println("send OK: SG ready url:" + s);
+      AsyncWebLog.printf("send OK: SG ready url: %s \r\n",s.c_str());
       http.end();
       return true;
     }
   }
   else 
   {
-    AsyncWebLog.println("ERROR: SG ready url:" + s);
-    debug_printf("httpResponseCode: %d\r\n", httpResponseCode);
+    AsyncWebLog.printf("ERROR: SG ready url: %s\r\n", s.c_str());
+    debug_printf("sendSGreadyURL httpResponseCode: %d\r\n", httpResponseCode);
   }
   // Free resources
   http.end();
@@ -476,17 +505,8 @@ void initWiFi()
 {
 #ifdef MINI_32
    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG,0); // brownout problems
-#endif
-   if (varStore.varWIFI_s_mode == "AP")
-   {
-    delay(100);
-    Serial.println("INFO-WIFI:AP-Mode");
-    WiFi.softAP(varStore.varDEVICE_s_name.c_str());   
-    Serial.print("IP Address: ");
-    SYS_IP = WiFi.softAPIP().toString();
-    Serial.println(SYS_IP);
-   }
-   else
+#endif   
+   if (varStore.varWIFI_s_mode == "STA")
    {
     debug_printf("INFO-WIFI:STA-Mode\r\n");
     WiFi.mode(WIFI_STA);
@@ -527,7 +547,14 @@ void initWiFi()
      ESP.restart();
     }
    }
-  return;
+   else
+   {
+    Serial.println("INFO-WIFI:AP-Mode");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP("esp-captive");   
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.softAPIP().toString());
+   }
 }     
 
 void testWiFiReconnect()
@@ -549,25 +576,23 @@ void testWiFiReconnect()
 // -------------------- WEBSERVER -------------------------------------------
 // --------------------------------------------------------------------------
 
-
 /// @brief replace placeholder "%<variable>%" in HTML-Code
 /// @param var 
 /// @return String
 String setHtmlVar(const String& var)
 {
-  
   debug_print("func:setHtmlVar: ");
   debug_println(var);
   sFetch = "";
  
   if (var == "CONFIG") // read config.txt
   {
-    if (!LittleFS.exists("/config.txt")) 
+    if (!myFS.exists("/config.txt")) 
     {
      return String(F("Error: File 'config.txt' not found!"));
     }
     // read "config.txt" 
-    fs::File configfile = LittleFS.open("/config.txt", "r");   
+    fs::File configfile = myFS.open("/config.txt", "r");   
     String sConfig;     
     if (configfile) 
     {
@@ -617,6 +642,7 @@ String setHtmlVar(const String& var)
 #endif
      return sFetch;
   }
+#ifdef EPEX_PRICE
   else
   if (var =="PRICE_LOW")
   {
@@ -828,12 +854,12 @@ String setHtmlVar(const String& var)
   else
   if (var == "COST_AKT_MONTH") // read config.txt
   {
-    if (!LittleFS.exists("/cost_akt_month.txt")) 
+    if (!myFS.exists("/cost_akt_month.txt")) 
     {
      return String(F("Error: File 'cost_akt_month.txt' not found!"));
     }
     // read "config.txt" 
-    fs::File cfile = LittleFS.open("/cost_akt_month.txt", "r");   
+    fs::File cfile = myFS.open("/cost_akt_month.txt", "r");   
     String sData;     
     if (cfile) 
     {
@@ -849,12 +875,12 @@ String setHtmlVar(const String& var)
   else
   if (var == "COST_AKT_YEAR") // read config.txt
   {
-    if (!LittleFS.exists("/cost_akt_year.txt")) 
+    if (!myFS.exists("/cost_akt_year.txt")) 
     {
      return String(F("Error: File 'cost_akt_year.txt' not found!"));
     }
     // read "config.txt" 
-    fs::File cfile = LittleFS.open("/cost_akt_year.txt", "r");   
+    fs::File cfile = myFS.open("/cost_akt_year.txt", "r");   
     String sData;     
     if (cfile) 
     {
@@ -867,11 +893,17 @@ String setHtmlVar(const String& var)
     }
     return sData;
   }
+  CALC_HOUR_ENERGYPRICE
   #endif
-  
+  // EPEX_PRICE
+  #endif 
+  else
+  if (var == "LUX_IP")
+  {
+    return varStore.varLUX_s_url;
+  }
   return "";
 }
-
 
 
 void notFound(AsyncWebServerRequest *request) 
@@ -885,28 +917,28 @@ void initWebServer()
   //Route for root / web page
   webserver.on("/",          HTTP_GET, [](AsyncWebServerRequest *request)
   {https://
-   request->send(LittleFS, "/index.html", String(), false, setHtmlVar);
+   request->send(myFS, "/index.html", String(), false, setHtmlVar);
   });
   //Route for root /index web page
   webserver.on("/index.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/index.html", String(), false, setHtmlVar);
+   request->send(myFS, "/index.html", String(), false, setHtmlVar);
   });
  
   //Route for setup web page
   webserver.on("/setup.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/setup.html", String(), false, setHtmlVar);
+   request->send(myFS, "/setup.html", String(), false, setHtmlVar);
   });
   //Route for config web page
   webserver.on("/config.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/config.html", String(), false, setHtmlVar);
+   request->send(myFS, "/config.html", String(), false, setHtmlVar);
   });
   //Route for Info-page
   webserver.on("/info.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/info.html", String(), false, setHtmlVar);
+   request->send(myFS, "/info.html", String(), false, setHtmlVar);
   });
 
   // config.txt GET
@@ -919,47 +951,52 @@ void initWebServer()
   });
   //----------------------------------------------------------------------
 
-  //Route for Luxtronik values
-  webserver.on("/luxtronik.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  // Temp Icons:
+  webserver.on("/temp_inside.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   luxws.setpolling(true); // POLLING ON !
-   request->send(LittleFS, "/luxtronik.html", String(), false, setHtmlVar);
-  });
-
-  //Route for setup web page
-  webserver.on("/meter.html",          HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-   request->send(LittleFS, "/meter.html", String(), false, setHtmlVar);
+   request->send(myFS, "/temp_inside.png", String(), false, setHtmlVar);
   });
   
+  //Route for Luxtronik details page
+  webserver.on("/luxtronik.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/luxtronik.html", String(), false, setHtmlVar);
+  });
 
+  //Route for meter page
+  webserver.on("/meter.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/meter.html", String(), false, setHtmlVar);
+  });
+  
   //.. some code for the navigation icons
   webserver.on("/home.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/home.png", String(), false);
+   request->send(myFS, "/home.png", String(), false);
   });
-
   webserver.on("/file-list.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/file-list.png", String(), false);
+   request->send(myFS, "/file-list.png", String(), false);
   });
 
   webserver.on("/settings.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/settings.png", String(), false);
+   request->send(myFS, "/settings.png", String(), false);
   });
+
+
 #ifdef SG_READY
   webserver.on("/smartgrid.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    request->send(LittleFS, "/smartgrid.html", String(), false, setHtmlVar);
+    request->send(myFS, "/smartgrid.html", String(), false, setHtmlVar);
   });
   webserver.on("/sgready.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    request->send(LittleFS, "/sgready.html", String(), false, setHtmlVar);
+    request->send(myFS, "/sgready.html", String(), false, setHtmlVar);
   });
   webserver.on("/reload.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/reload.png", String(), false);
+   request->send(myFS, "/reload.png", String(), false);
   });
 #endif
   
@@ -973,17 +1010,19 @@ void initWebServer()
 #else
     sFetch += "-";
 #endif
-
      sFetch += ',';
-
-#ifdef DS100
-    sFetch += "--"                                                     // 2 todo: DS100 Power L1
+/* z.Z. Wert von Luxtonic anzeigen !
+#ifdef DS100_MODBUS
+    sFetch += valDS100_L1_W / 1000;                                    // 2 DS100 Power L1
+    sFetch += ',';
 #else 
+*/
     sFetch += luxws.getval(LUX_VAL_TYPE::POWER_IN, true);              // 2 Power In
-#endif
-
-    sFetch += luxws.getCSVfetch(true);                                 // 3...
-    sFetch += "end";     
+    sFetch += luxws.getCSVfetch(true);                                 // 3...36
+    sFetch += String(luxws.tempRoom,1);                                // 37
+    sFetch += ',';
+    sFetch += String(luxws.powerInMeter);                              // 38
+    sFetch += ",end";     
 
     //debug_printf("server.on fetch: %s",sFetch.c_str());
     request->send(200, "text/plain", sFetch);  
@@ -993,39 +1032,66 @@ void initWebServer()
   // Route for style-sheet
   webserver.on("/style.css",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/style.css", String(), false);
+   request->send(myFS, "/style.css", String(), false);
   });
+
+  // Route for manifest
+  webserver.on("/manifest.json",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/manifest.json", String(), false);
+  });
+  
 
   // App-Icons
   webserver.on("/current.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/current.png", String(), false);
+   request->send(myFS, "/current.png", String(), false);
   });
   webserver.on("/sg.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/sg.png", String(), false);
+   request->send(myFS, "/sg.png", String(), false);
   });
   webserver.on("/sgready.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/sgready.png", String(), false);
+   request->send(myFS, "/sgready.png", String(), false);
   });
   webserver.on("/heatpump.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/heatpump.png", String(), false);
+   request->send(myFS, "/heatpump.png", String(), false);
   });
    webserver.on("/luxtronik.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/luxtronik.png", String(), false);
+   request->send(myFS, "/luxtronik.png", String(), false);
   });
   webserver.on("/homeauto.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(LittleFS, "/homeauto.png", String(), false);
+   request->send(myFS, "/homeauto.png", String(), false);
+  });
+
+  // at index.html Luxtronic status
+  webserver.on("/poweroff.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/poweroff.png", String(), false, setHtmlVar);
+  });
+  
+  webserver.on("/hotwater.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/hotwater.png", String(), false);
+
+  }); webserver.on("/radiator.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/radiator.png", String(), false);
+
+  }); webserver.on("/defrost.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/defrost.png", String(), false);
   });
 
   // fetch GET
   webserver.on("/fetchmeter", HTTP_GET, [](AsyncWebServerRequest *request)
   {
-  
+    sFetch = "";
+#ifdef DS100_MODBUS   
     sFetch = valDS100_L1_W;       // 0
     sFetch+= ',';
     sFetch+= valDS100_L2_W;       // 1
@@ -1039,13 +1105,19 @@ void initWebServer()
     sFetch+= valDS100_L3_KWH*10;  // 5
     sFetch+= ',';
     sFetch+= valDS100_mV;         //6
+#else
+    sFetch = "--,--,--,--,--,--,--";
+#endif
+#if defined SML_TIBBER || defined SML_TASMOTA
     sFetch+= ',';
     sFetch+= smldecoder.getWatt();  // 7
     sFetch+= ',';
     sFetch+= smldecoder.getInputkWh(); // 8
     sFetch+= ',';
     sFetch+= smldecoder.getOutputkWh(); // 9
-    
+#else
+    sFetch+= ",--,--,--";
+#endif
     request->send(200, "text/plain", sFetch);
     //debug_println("server.on /fetchmeter: "+ s);
   });
@@ -1089,7 +1161,7 @@ void initWebServer()
      smartgrid.setAppOutputFromRules(ntpclient.getTimeInfo()->tm_hour);
     }
 
-    request->send(LittleFS, "/sgready.html", String(), false, setHtmlVar); 
+    request->send(myFS, "/sgready.html", String(), false, setHtmlVar); 
    });
    #endif      
 
@@ -1110,9 +1182,9 @@ void initWebServer()
          smartgrid.getAppRules();   // old: setSmartGridRules(); // calulate rules from config
 #endif
      }
-     request->send(LittleFS, "/config.html", String(), false, setHtmlVar);
+     request->send(myFS, "/config.html", String(), false, setHtmlVar);
     });
-       
+     
   // init Webserver 
   sFetch.reserve(150);
   AsyncWebLog.begin(&webserver);
@@ -1120,7 +1192,10 @@ void initWebServer()
   webserver.onNotFound(notFound);
   webserver.begin();
   }
-#endif
+#else
+  void initWebServer() {};
+#endif // WEB_APP
+
 
 ////////////////////////////////////////////////////
 /// @brief setup
@@ -1133,20 +1208,25 @@ void setup()
   delay(500);
   initLED();
   initRelay();
-  initLittleFS();
+  initFS();
   initFileVarStore(); 
   setcolor('b'); // blue
   initWiFi();
   initWebServer(); 
   setLED(0);
   delay(500);
+#ifdef EPEX_PRICE
   smartgrid.init();
+#endif
 #ifdef SML_TIBBER
   smldecoder.init(varStore.varSML_s_url.c_str(), varStore.varSML_s_user.c_str(), varStore.varSML_s_password.c_str());
 #endif
- #ifdef DS100_MODBUS
+#ifdef DS100_MODBUS
   DS100Init();
-  #endif
+#endif
+#ifdef MQTT_CLIENT
+  initMQTT();
+#endif
   luxws.init(varStore.varLUX_s_url.c_str(), varStore.varLUX_s_password.c_str());
   delay(1000);
 }
@@ -1157,6 +1237,10 @@ void setup()
 void loop() 
 {
    luxws.loop();
+   #ifdef MQTT_CLIENT
+   mqtt.loop();
+#endif
+
    if (millis() - TimerSlowDuration > TimerSlow) 
    {
     TimerSlow = millis();                      // Reset time for next event
@@ -1165,13 +1249,16 @@ void loop()
     tm* looptm = ntpclient.getTimeInfo();
     debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
     AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
+#ifdef MQTT_CLIENT
+    AsyncWebLog.printf("Raum-Temp: %2.1f \r\n", luxws.tempRoom);
+#endif
 #ifdef SML_TIBBER
     smldecoder.read(); 
 #endif  
 #ifdef DS100_MODBUS
     DS100read();
 #endif
-#ifdef SG_READY
+#ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
     smartgrid.loop(&tt);
 #endif
@@ -1188,17 +1275,15 @@ void loop()
     {
       AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
       AsyncWebLog.printf("WP-State:             \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
-      AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
-      AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
-  
+      //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
+      //AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
+     
     }
     else
     {
        AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
     }
   }
-
-  
   // fast blink
   static int c4 = 0;
   if (millis() - TimerFastDuration > TimerFast)
