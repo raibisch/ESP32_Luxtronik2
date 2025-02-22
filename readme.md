@@ -30,27 +30,27 @@ List and calculate most of the values from Luxtronik
 
 ## Screenshots of Web-App ...runs on every Webbrowser (mobil or PC):
 
+#### Start-Page
 ![index](/pict/lux_index.png)  
-Start-Page
 
+#### Luxtronik detail data
 ![details](/pict/lux_details.png)  
-Luxtronic detail-data
 
+#### Actual Day-Ahead Price inc. fix-cost and tax (optional)
 ![epex](/pict/lux_epex.png)  
-Actual Day-Ahead Price inc. fix-cost and tax (optional)
 
+#### View and set (manual or based on EPEX-Values) the SG-ready Interface of Heatpump (optional)
 ![epex](/pict/lux_sgready.png)  
-View and set (manual or based on EPEX-Values) the SG-ready Interface of Heatpump (optional)
 
+
+#### View Tibber-Pulse or Tasmota Meter values (optional) and DS100 Meter values (optional)
 ![epex](/pict/lux_meter.png)  
-View Tibber-Pulse or Tasmota Meter values (optional)
-View DS100 Meter values (optional)
 
+#### Text based Config-File
 ![epex](/pict/lux_config.png)
-Text based Config-File
 
+#### Update Software and Data from Webbrowser (OTG)
 ![epex](/pict/lux_otg.png)
-Update Software and Data from Webbrowser (OTG)
 
 
 
