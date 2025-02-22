@@ -1,32 +1,31 @@
 ; ***** copy this file to 'config.txt'
 
 
-varDEVICE_s_Name=HYBROX-8;
-varWIFI_s_Mode=STA;  // AP=AccessPoint STA=Station
+varDEVICE_s_Name=LUXTRONIK_2;
+varWIFI_s_Mode=AP;  // AP=AccessPoint STA=Station
 varWIFI_s_Password= xxxxx;
-varWIFI_s_SSID=SMC4;
+varWIFI_s_SSID= xxx;
 
-varLuxtronik_s_IP= 192.168.2.101;
+varLuxtronik_s_IP= 192.168.x.xx;
 
 varSML_s_url = 192.168.2.xx;
 varSML_s_password = xxxx-xxxx;
 varSML_s_user = admin;
-
+and SGredy setting
 varEPEX_i_high = 30;
 varEPEX_i_low= 27;
-
 varCOST_f_fix = 17.51;
 varCOST_i_mwst = 19;
 
-;varSG_s_rule1=00,23,3,0,FIX;
+
+; for EPEX price calculation 
+;varSG_s_rule1=00,47,3,0,FIX;  00h today until 23h next day
 ;varSG_s_rule2=00,23,2,30,EPEX_HIGHLIMIT;
 ;varSG_s_rule3=05,11,1,1,EPEX_HIGHHOUR; 
 ;varSG_s_rule4=17,23,1,1,EPEX_HIGHHOUR;
 ;varSG_s_rule5=00,23,4,1,EPEX_LOWHOUR;
 ;varSG_s_rule2=00,23,4,4,EPEX_LOWHOUR;
 ;varSG_s_rule3=00,23,1,6,EPEX_HIGHHOUR;
-varSG_s_rule1=00,07,4,4,EPEX_LOWHOUR;
-varSG_s_rule2=13,23,4,4,EPEX_LOWHOUR;
 
 
 ; for my ABL Wallbox Project on Github:

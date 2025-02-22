@@ -1,3 +1,4 @@
+#copy bin files to 'upload' directory
 
 from shutil import copyfile
 Import("env","projenv") # type: ignore
