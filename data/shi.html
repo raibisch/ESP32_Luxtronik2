@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<html>
+
+    <head>
+        <title>%DEVICEID%</title>
+        <meta content="width=device-width, initial-scale=0.90, user-scalable=yes" name="viewport">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <meta charset="UTF-8">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme-color" content="#ffffff">
+    </head>
+
+    <body >
+         <h2>Smart-Home-Interface</h2>
+         </p>
+         <div class="range">
+          <div class="range-slider">
+            <label for="range"> Temp. Korrektur [K]:</label><br />
+            <form id="set_temp" action="" method="POST">
+             <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-1.5" max="1.5" value="%SHIHEOFFSET%"  step="0.5"/>
+            </form>
+            <div class="sliderticks">
+              <span>-1.5</span>
+              <span>-1.0</span>
+              <span>-0.5</span>
+              <span>0</span>
+              <span>+0.5</span>
+              <span>+1.0</span>
+              <span>+1.5</span>
+            </div>
+          </div>
+          <div id="val_temp" class="value">%SHIHEOFFSET%</div>
+         </div>
+         <input class="buttonsmallred" type="submit" id="idsg4" value="SET" onclick="submitTemp()">
+
+         <div style="height: 100px;"> </div>
+         <div class="range">
+            <div class="range-slider">
+              <label for="range"> Max. WP Leistung [kW]:</label><br />
+              <form id="set_kw" action="" method="POST">
+              <input type="range" id="range_kw" name="range_kw" onchange="changeKW()" min="1.0" max="2.0" value="%SHIPCSETPOINT%"  step="0.2"/>
+              </form>
+              <div class="sliderticks">
+                <span>1.0</span>
+                <span>1.2</span>
+                <span>1.4</span>
+                <span>1.6</span>
+                <span>1.8</span>
+                <span>2.0</span>
+              </div>
+            </div>
+            <div id="val_kw" class="value">%SHIPCSETPOINT%</div>
+         </div>
+         <input class="buttonsmallred" type="submit" id="set_shi_kw"  value="SET" onclick="submitKW()">
+         </p>
+         <div style="height: 100px;"> </div>
+
+         <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
+         <button type="button" class="image-btn" > </button>
+         <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+
+         <script type="text/javascript">
+
+          function changeTemp() 
+          {
+           let x = document.getElementById("range_temp").value;
+           document.getElementById("val_temp").innerHTML = x;
+          }
+          function changeKW() 
+          {
+           let x = document.getElementById("range_kw").value;
+           document.getElementById("val_kw").innerHTML = x;
+          }  
+
+          function submitKW()
+          {
+           let form = document.getElementById('set_kw');
+           form.submit();
+          }
+          function submitTemp()
+          {
+           let form = document.getElementById('set_temp');
+           form.submit();
+          }
+         </script>
+    </body>
+
+</html>

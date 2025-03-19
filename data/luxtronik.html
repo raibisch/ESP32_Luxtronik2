@@ -92,7 +92,7 @@
         <td id="DEFROST_TIME">--</td>
       </tr>
       <tr>
-        <th>VD Laufzeit</th>
+        <th id="LABEL_ON_OF_TIME">VD Laufzeit</th>
         <th>letz. Abtau.</th>
       </tr>
     </table>
@@ -145,19 +145,22 @@
       </tr>
   </table>
   <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
-  <button type="button" class="image-btn" onclick="gotoluxtronik()"><img src="luxtronik.png">Luxtronik</button>
+  <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button>
   <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Utility'"><img src="homeauto.png">Domoticz</button>
          
   <script type="text/javascript">
-      //var t = new Date();
+
       // mal bei gelegentheit ausprobieren:
       //const name = document.querySelector(".name"); // '.'' = class '#'' = id
       function luxrequest()
       {
+        // Test:
+        // luxurl = "http://192.168.2.101";
         luxurl = "http://" + "%LUX_IP%";
         window.location.href = luxurl;
       }
 
+     /* wir nicht mehr benötigt da wir jezt mit Webservice mit 'REFRESH' abfragen 
      function gotoluxtronik() 
      {
        var xhrlux = new XMLHttpRequest();
@@ -167,6 +170,7 @@
        //xhrlux.setRequestHeader("Content-type", "text/raw");
        xhrlux.send("name=WSoff&value=off&test=0");
      }
+     */  
      //function sec2date(sec)
      //{ return new Date(sec * 1000).toISOString().substring(11, 19)}
      

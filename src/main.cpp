@@ -10,11 +10,11 @@
 #include <ESPmDNS.h>                   
 #include <ESPAsyncWebServer.h>         
 #include <HTTPClient.h>                 
-#include <base64.h>                    
+#include <base64.h>                   
 //#include <Preferences.h>
 
 // my includes
-#include "fs_switch.h"   // switch between SPIFFS and LittleFS
+//#include "fs_switch.h"   // switch between SPIFFS and LittleFS
 #include "debug_print.h" // debug_print macros
 
 // my libs
@@ -32,6 +32,10 @@
 #include "LuxWebsocket.h"
 #include "SMLdecode.h"
 #include "PicoMQTT.h"
+
+#ifdef SHI_MODBUS
+#include "LuxModbusSHI.h"
+#endif
 
 //external libs
 #ifdef SML_JSON
@@ -68,7 +72,7 @@
  #define LED_GPIO 10
 #endif
 
-const char* SYS_Version = "V 0.9.4";
+const char* SYS_Version = "V 0.9.5";
 const char* SYS_CompileTime =  __DATE__;
 static String  SYS_IP = "0.0.0.0";
 
@@ -86,10 +90,17 @@ LuxWebsocket luxws; // Luxtronik Webservice
 SMLdecode smldecoder;
 #endif
 
-WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-Interface
+WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-Interface *und* ModbusTCPClient
 
 #ifdef MQTT_CLIENT
-PicoMQTT::Client mqtt("192.168.2.22");
+// old:
+//PicoMQTT::Client mqtt("192.168.2.22");
+// set parameter later:
+PicoMQTT::Client mqtt;
+#endif
+
+#ifdef SHI_MODBUS
+LuxModbusSHI modbusSHI;
 #endif
 
 // fetch String;
@@ -180,6 +191,9 @@ char _bufval[6];
 XPString sval(_bufval,6);
 void inline initMQTT()
 {
+  // MQTT settings can be changed or set here instead
+  mqtt.host = "192.168.2.22";
+  mqtt.client_id = "esplux" + WiFi.macAddress();
   // Subscribe to a topic and attach a callback
   mqtt.subscribe("shellies/status/temperature:0", [](const char * topic, const char * payload)
   {
@@ -220,8 +234,10 @@ class WPFileVarStore final: public FileVarStore
    String varWIFI_s_password= "";
    String varWIFI_s_ssid    = "espluxtronik2";
 
-   String varLUX_s_url  = "192.168.2.101";
-   String varLUX_s_password = "";
+   String varLUX_s_url      = "192.168.2.101";
+   String varLUX_s_password = "999999";
+   String varMQTT_s_url     = "192.168.2.22";
+
 #if defined EPEX_PRICE || defined SG_READY
    int    varEPEX_i_low     = 22;   // cent per kwh
    int    varEPEX_i_high    = 26;   // cent per kwh
@@ -248,6 +264,12 @@ class WPFileVarStore final: public FileVarStore
    String varSG_s_sg3       = "";        //  http://192.168.2.137/cm?cmnd=Power1%200 Tasmota Relais1 2 off   ("                             ")
    String varSG_s_sg4       = "";        //  http://192.168.2.137/cm?cmnd=Backlog%20Power1%201%3BPower2%200   Tasmota Relais1=on, Relais2=off (replace % with # in config) switch Relais 1 and Relais 2 
 #endif
+#ifdef SHI_MODBUS
+uint16_t varSHI_i_1      = 10;
+uint16_t varSHI_i_2      = 11;
+uint16_t varSHI_i_3      = 12;
+uint16_t varSHI_i_4      = 15;
+#endif
 
  protected:
    void GetVariables() 
@@ -256,11 +278,11 @@ class WPFileVarStore final: public FileVarStore
      varWIFI_s_mode       = GetVarString(GETVARNAME(varWIFI_s_mode)); //STA or AP
      varWIFI_s_password   = GetVarString(GETVARNAME(varWIFI_s_password));
      varWIFI_s_ssid       = GetVarString(GETVARNAME(varWIFI_s_ssid));
-    
+#if defined SML_TASMOTA || defined SML_TIBBER
      varSML_s_url         = GetVarString(GETVARNAME(varSML_s_url));
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
      varSML_s_password    = GetVarString(GETVARNAME(varSML_s_password));
-
+#endif
      varLUX_s_url         = GetVarString(GETVARNAME(varLUX_s_url));
      varLUX_s_password    = GetVarString(GETVARNAME(varLUX_s_password));
 
@@ -287,7 +309,12 @@ class WPFileVarStore final: public FileVarStore
      varSML_s_password    = GetVarString(GETVARNAME(varSML_s_password));
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
 #endif 
-
+#ifdef SHI_MODBUS
+     varSHI_i_1           = GetVarInt(GETVARNAME(varSHI_i_1));
+     varSHI_i_2           = GetVarInt(GETVARNAME(varSHI_i_2));
+     varSHI_i_3           = GetVarInt(GETVARNAME(varSHI_i_3));
+     varSHI_i_4           = GetVarInt(GETVARNAME(varSHI_i_4));
+#endif
    }
 };
 
@@ -372,6 +399,7 @@ bool sendSGreadyURL(String s)
 {
   HTTPClient http;
   
+  http.setConnectTimeout(500); // 13.03.2025 fix: if url not found or down
   if (s.startsWith("http:") == false)
   {
     AsyncWebLog.printf("No HTTP sendSGreadString:  %s\r\n" ,s.c_str());
@@ -435,7 +463,7 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   case 1:
     setcolor('b');
     sendSGreadyURL(varStore.varSG_s_sg1);
-   
+    
     setRelay(1,1);
     setRelay(2,0);
     
@@ -893,7 +921,6 @@ String setHtmlVar(const String& var)
     }
     return sData;
   }
-  CALC_HOUR_ENERGYPRICE
   #endif
   // EPEX_PRICE
   #endif 
@@ -902,6 +929,19 @@ String setHtmlVar(const String& var)
   {
     return varStore.varLUX_s_url;
   }
+  else
+  if (var == "SHIHEOFFSET")
+  {
+    //return "1.0";
+    return String(float(modbusSHI.getHeatOffsetX10()/10.0), 1);
+  }
+  else
+  if (var == "SHIPCSETPOINT")
+  {
+    //return "1.6";
+    return String(float(modbusSHI.getPCSetpoint())/100.0, 1);
+  }
+
   return "";
 }
 
@@ -999,6 +1039,20 @@ void initWebServer()
    request->send(myFS, "/reload.png", String(), false);
   });
 #endif
+
+// Smart-Home-Interface --------------------------------
+  webserver.on("/shi.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(myFS, "/shi.html", String(), false, setHtmlVar);
+  });
+  webserver.on("/shi.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(myFS, "/shi.png", String(), false);
+  });
+  
+
+
+
   
   webserver.on("/fetch", HTTP_GET, [](AsyncWebServerRequest *request)
   {
@@ -1027,7 +1081,6 @@ void initWebServer()
     //debug_printf("server.on fetch: %s",sFetch.c_str());
     request->send(200, "text/plain", sFetch);  
   });
-
 
   // Route for style-sheet
   webserver.on("/style.css",          HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1071,7 +1124,7 @@ void initWebServer()
   // at index.html Luxtronic status
   webserver.on("/poweroff.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(myFS, "/poweroff.png", String(), false, setHtmlVar);
+   request->send(myFS, "/poweroff.png", String(), false);
   });
   
   webserver.on("/hotwater.png",          HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1184,6 +1237,28 @@ void initWebServer()
      }
      request->send(myFS, "/config.html", String(), false, setHtmlVar);
     });
+
+    // config.html POST
+    webserver.on("/shi.html",          HTTP_POST, [](AsyncWebServerRequest *request)
+    {
+         debug_printf("SHI- Argument: %s \r\n",request->argName(0));
+         String sName = request->argName(size_t(0));
+         String sVal  = request->arg(size_t(0));
+
+         debug_printf("SHI-Arg: %s, Value: %s\r\n",sName.c_str(), sVal.c_str());
+         if (sName == "range_temp")
+         {
+           debug_println("[SHI] SET-TEMP-OFFSET !!!");
+           modbusSHI.setHeatOffset(2, uint16_t(sVal.toFloat()*10));
+         }
+         else
+         if (sName == "range_kw")
+         {
+          debug_println("[SHI] SET-KW !!!");
+          modbusSHI.setPCSetpoint(2, uint16_t(sVal.toFloat()*100));
+         }
+         request->send(myFS, "/shi.html", String(), false, setHtmlVar); 
+    });
      
   // init Webserver 
   sFetch.reserve(150);
@@ -1227,6 +1302,10 @@ void setup()
 #ifdef MQTT_CLIENT
   initMQTT();
 #endif
+#ifdef SHI_MODBUS
+  modbusSHI.init(varStore.varLUX_s_url.c_str());
+#endif
+
   luxws.init(varStore.varLUX_s_url.c_str(), varStore.varLUX_s_password.c_str());
   delay(1000);
 }
@@ -1237,7 +1316,7 @@ void setup()
 void loop() 
 {
    luxws.loop();
-   #ifdef MQTT_CLIENT
+#ifdef MQTT_CLIENT
    mqtt.loop();
 #endif
 
@@ -1262,6 +1341,10 @@ void loop()
     time_t tt = ntpclient.getUnixTime();
     smartgrid.loop(&tt);
 #endif
+#ifdef SHI_MODBUS
+    modbusSHI.poll();
+#endif
+
     if (looptm->tm_hour == 0 && looptm->tm_min ==0 && looptm->tm_sec < 7)
     { 
       luxws.poll(true); // new Day
@@ -1270,7 +1353,6 @@ void loop()
     {
       luxws.poll(false);
     }
-  
     if (luxws.isConnected())
     {
       AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
@@ -1285,34 +1367,8 @@ void loop()
     }
   }
   // fast blink
-  static int c4 = 0;
   if (millis() - TimerFastDuration > TimerFast)
   {
-#ifdef ESP32_S3_ZERO
-  // useless color change ;-)
-   c4++;
-   if (c4 > 4) {c4 = 0;}
-   switch (c4)
-  {
-    case 0: 
-      neopixel_color = 'r';
-      break;
-    case 1:
-      neopixel_color = 'g';
-      break;
-    case 2:
-      neopixel_color = 'b';
-      break;
-    case 3:
-      neopixel_color = 'y';
-      break;
-    case '4':
-      neopixel_color = 'w';
-      break;
-    default:
-       break;
-    }
-#endif
     TimerFast = millis();
     blinkLED();
   }

@@ -12,21 +12,19 @@ varSML_s_url = 192.168.2.xx;
 varSML_s_password = xxxx-xxxx;
 varSML_s_user = admin;
 and SGredy setting
-varEPEX_i_high = 30;
-varEPEX_i_low= 27;
+varEPEX_i_high = 35;
+varEPEX_i_low= 26;
 varCOST_f_fix = 17.51;
 varCOST_i_mwst = 19;
 
 
 ; for EPEX price calculation 
-;varSG_s_rule1=00,47,3,0,FIX;  00h today until 23h next day
-;varSG_s_rule2=00,23,2,30,EPEX_HIGHLIMIT;
-;varSG_s_rule3=05,11,1,1,EPEX_HIGHHOUR; 
-;varSG_s_rule4=17,23,1,1,EPEX_HIGHHOUR;
-;varSG_s_rule5=00,23,4,1,EPEX_LOWHOUR;
-;varSG_s_rule2=00,23,4,4,EPEX_LOWHOUR;
-;varSG_s_rule3=00,23,1,6,EPEX_HIGHHOUR;
-
+varSG_s_rule1=00,47,3,0,FIX;  00h today until 23h(=47) next day
+varSG_s_rule2=00,47,1,25,EPEX_LOWLIMIT;
+varSG_s_rule3=01,07,4,4,EPEX_LOWHOUR;
+varSG_s_rule4=14,07,4,4,EPEX_LOWHOUR;
+varSG_s_rule5=25,31,4,4,EPEX_LOWHOUR;
+varSG_s_rule6=00,47,1,35,EPEX_HIGHLIMIT;
 
 ; for my ABL Wallbox Project on Github:
 ;varSG_s_sg1  = http://192.168.2.108/fetch?imax=0;

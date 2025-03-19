@@ -23,9 +23,9 @@
         <div class="temp_room"><img src="temp_inside.png"><span id="TEMP_ROOM">--.-</span></div>
         <div class="temp_room"> </div>
        <div>
-        <div id="ICON_STATUS" class="icon_status" onclick="window.location.href='http://192.168.2.23/#/Devices/79/Log'" ><img id="ICON_IMG" src="poweroff.png"></div>
-        <div id="KW_IN" class="ringtext_value"  onclick="window.location.href='http://192.168.2.23/#/Dashboard'">xx.xxx</div>
-        <div id="COP_AKT" class="ringtext_value2">xx.x</div>
+        <div id="ICON_STATUS" class="icon_status" onclick="window.location.href='http://192.168.2.23/#/Dashboard'" ><img id="ICON_IMG" src="poweroff.png"></div>
+        <div id="KW_IN" class="ringtext_value"  onclick="window.location.href='http://192.168.2.23/#/Devices/78/Log'">xx.xxx</div>
+        <div id="COP_AKT" class="ringtext_value2" onclick="window.location.href='http://192.168.2.23/#/Devices/99/Log'" >xx.x</div>
        </div>
        <div>
         <div class="value_status" id="WP_STATUS">--</div>
@@ -62,44 +62,45 @@
         </table>
         <table>
             <tr>
-              <td id="WW_IN_KWH">--</td>
-              <td id="HE_IN_KWH">--</td>
-              <td id="SUMIN_KWH">--</td>
-              <td id="SUMEL_KWH">--</td>
+              <td id="VD_ONTIME">--</td>
+              <td id="VD_RPM">--</td>
+              <td id="VE_RPM">--</td>
             </tr>
             <tr>
-              <th>WW-In kWh</th>
-              <th>He-In kWh</th>
-              <th>Sum-In kWh</th>
-              <th>Elekt.kWh</th>
+              <th>Laufz.</th>
+              <th>VD-RPM</th>
+              <th>Vent-RPM</th>
             </tr>
             <tr>
-              <td id="WW_COP">--</td>
-              <td id="HE_COP">--</td>
-              <td id="SUM_COP">--</td>
-              <td id="ELEKT_COP">--</td>
+              <td id="WW_COPDAY">--</td>
+              <td id="HE_COPDAY">--</td>
+              <td id="SUM_COPDAY">--</td>
             </tr>
             <tr>
-              <th>COP WW   </th>
-              <th>COP HEIZ </th>
-              <th>COP SUM  </th>
-              <th>COP ELEKT</th>
+              <th>Day-COP WW   </th>
+              <th>Day-COP HEIZ </th>
+              <th>Day-COP SUM  </th>
             </tr>
       </table>
     <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
-    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Luxtronik</button>
-    <button type="button" class="image-btn" onclick="window.location.href='sgready.html'"><img src="sgready.png">SGready</button> 
+    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Anlage</button>
+    <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Dashboard'"><img src="homeauto.png">Domoticz</button>
+    <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button>
     <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
+    <button type="button" class="image-btn" onclick="window.location.href='shi.html'"><img src="shi.png">Smart-Home</button>
     <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
          
     <script type="text/javascript">
             
-            function gotoLuxtronik()
+            function luxrequest()
             {
-              // noch nicht realisiert
+             // Test:
+             // luxurl = "http://192.168.2.101";
+             luxurl = "http://" + "%LUX_IP%";
+             window.location.href = luxurl;
             }
-           
+                       
             function reqListener ()
             {
               var myResponse = this.responseText;
@@ -161,9 +162,18 @@
                document.getElementById('RL_SOLL').innerHTML = myArray[7];
                document.getElementById('VL_IST').innerHTML  = myArray[8];
              
-               document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
-               document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
-               document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+               //document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
+               //document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
+               //document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+               
+               document.getElementById('VD_ONTIME').innerHTML= myArray[34];
+               document.getElementById('VD_RPM').innerHTML   = myArray[24];
+               document.getElementById('VE_RPM').innerHTML   = myArray[31];
+               // COP-Day
+               document.getElementById('WW_COPDAY').innerHTML = myArray[18];
+               document.getElementById('HE_COPDAY').innerHTML = myArray[17];
+               document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
+
                document.getElementById('HUP_LH').innerHTML    = myArray[20];
                //document.getElementById('SUMEL_KWH').innerHTML = myArray[4];
 
@@ -182,58 +192,12 @@
                 document.getElementById('COP_AKT').innerHTML = "--"
                }
 
-               if (parseFloat( myArray[11]) > 0)
-               {
-                document.getElementById('HE_COP').innerHTML = ((myArray[14] *1.0) / myArray[11]).toFixed(2);
-               }
-
-               if (parseFloat( myArray[12]) > 0)
-               {
-                document.getElementById('WW_COP').innerHTML   = ((myArray[15] *1.0) / myArray[12]).toFixed(2);
-               }
-
-               if (parseFloat(myArray[13]) > 0)
-               {
-                document.getElementById('SUM_COP').innerHTML = ((myArray[16] *1.0) / myArray[13]).toFixed(2);
-               }
+               // COP-Day
+               document.getElementById('WW_COPDAY').innerHTML = myArray[18];
+               document.getElementById('HE_COPDAY').innerHTML = myArray[17];
+               document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
               }
              
-              /*
-              if (sgrStatus.startsWith('1'))
-              {
-                //document.getElementById('SGR_STATUS').style.color = 'blue';
-                // in Zukunft nur bei WP-on blinken
-                //document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'blue';
-              }
-              else if (sgrStatus.startsWith('2'))
-              {
-                //document.getElementById('SGR_STATUS').style.color = 'green';
-                 // in Zukunft nur bei WP-on blinken
-                //document.getElementById('RING_ID').className = "outerring_blink";    
-                document.getElementById('RING_ID').style.background = 'green'; 
-              }
-              else if (sgrStatus.startsWith('3'))
-              {
-                //document.getElementById('SGR_STATUS').style.color = 'orange';
-                 // in Zukunft nur bei WP-on blinken
-                //document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'orange';
-              }
-              else
-              if (sgrStatus.startsWith('4'))
-              {
-                //document.getElementById('SGR_STATUS').style.color = 'red';
-                 // in Zukunft nur bei WP-on blinken
-                //document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'red';
-              }
-              else
-              {
-                document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'black';
-              }
-              */arguments
             }
             var oReq = new XMLHttpRequest();
             oReq.addEventListener("load", reqListener);
