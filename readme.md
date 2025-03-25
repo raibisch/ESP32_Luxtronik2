@@ -15,7 +15,7 @@ List and calculate most of the values from Luxtronik on a ESP32 Microcontroller.
 
 - Tibber-Puls Adapter Integration
 - SGready (Smart-Grid-Ready Relay-Interface) with Hardware or Tasmota or Shelly Relais
-- Smart-Home-Interface (SHI) (needs firmware Luxtronik 2.1 >=  V90.4.2)
+- Smart-Home-Interface (SHI) (needs firmware Luxtronik 2.1 >=  V3.90.2)
 - Shelly HT3 indoor room temperatur sensor via MQTT
 - API and visualisation of EPEX-Price Data including local fix costs and tax
 - RS485 Modbus integration for DS100 Energy-Meter (needs extra hardware)
