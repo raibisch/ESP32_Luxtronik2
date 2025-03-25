@@ -31,8 +31,7 @@
   <button type="button" class="image-btn" onclick="submitReload()">                   <img src="reload.png">Reload</button>
   <button type="button" class="image-btn" onclick="window.location.href='config.html'"><img src="settings.png">Setup</button>
 
-  <script type="text/javascript">
-    
+  <script type="text/javascript"> 
     function submitSGR() 
     {
       let n = event.target.name;
@@ -52,7 +51,7 @@
 
     var myStatus = "%SGMODE%";
     if (myStatus == "sg1") {
-      document.getElementById('idsg1').style.color = 'gray';
+      document.getElementById('idsg1').style.color = 'black';
     }
     else
       if (myStatus == "sg2") {
@@ -108,9 +107,7 @@
         chart.ctx.stroke();
       }
     };
-
     // by JG: 10.02.2025 onClick for selection hour
-
     var myChart = new Chart(ctx, {
       type: "bar",
       //title: "SGready",

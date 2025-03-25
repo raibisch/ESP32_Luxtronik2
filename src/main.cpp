@@ -265,10 +265,10 @@ class WPFileVarStore final: public FileVarStore
    String varSG_s_sg4       = "";        //  http://192.168.2.137/cm?cmnd=Backlog%20Power1%201%3BPower2%200   Tasmota Relais1=on, Relais2=off (replace % with # in config) switch Relais 1 and Relais 2 
 #endif
 #ifdef SHI_MODBUS
-uint16_t varSHI_i_1      = 10;
-uint16_t varSHI_i_2      = 11;
-uint16_t varSHI_i_3      = 12;
-uint16_t varSHI_i_4      = 15;
+uint16_t varSHI_i_pcsp1      = 14;
+uint16_t varSHI_i_pcsp2      = 14;
+uint16_t varSHI_i_pcsp3      = 14;
+uint16_t varSHI_i_pcsp4      = 14;
 #endif
 
  protected:
@@ -310,10 +310,10 @@ uint16_t varSHI_i_4      = 15;
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
 #endif 
 #ifdef SHI_MODBUS
-     varSHI_i_1           = GetVarInt(GETVARNAME(varSHI_i_1));
-     varSHI_i_2           = GetVarInt(GETVARNAME(varSHI_i_2));
-     varSHI_i_3           = GetVarInt(GETVARNAME(varSHI_i_3));
-     varSHI_i_4           = GetVarInt(GETVARNAME(varSHI_i_4));
+     varSHI_i_pcsp1           = GetVarInt(GETVARNAME(varSHI_i_pcsp1),12);
+     varSHI_i_pcsp2           = GetVarInt(GETVARNAME(varSHI_i_pcsp2),12);
+     varSHI_i_pcsp3           = GetVarInt(GETVARNAME(varSHI_i_pcsp3),12);
+     varSHI_i_pcsp4           = GetVarInt(GETVARNAME(varSHI_i_pcsp4),12);
 #endif
    }
 };
@@ -333,7 +333,6 @@ class SmartGridEPEX : public SmartGrid
   public:
   SmartGridEPEX(const char* epex) : SmartGrid(epex) {}
 
-
 #ifndef M5_COREINK
   /// @brief 
   /// @return 
@@ -344,6 +343,7 @@ class SmartGridEPEX : public SmartGrid
     {
         setHourVar1(i, DEFAULT_SGREADY_MODE);
     }
+    bRule_OFF = false; // is set at rule "OFF"
 #ifdef SG_READY
     calcSmartGridfromConfig(varStore.varSG_s_rule1.c_str());
     calcSmartGridfromConfig(varStore.varSG_s_rule2.c_str());
@@ -360,7 +360,6 @@ class SmartGridEPEX : public SmartGrid
   /// @param hour 
   void setAppOutputFromRules(uint8_t hour) final
   {
-
     setSGreadyOutput(this->getHourVar1(hour));
   }
 #endif
@@ -434,6 +433,14 @@ bool sendSGreadyURL(String s)
   return false;
 }
 
+bool setSHIPCSetpoint(uint val)
+{
+#ifdef SHI_MODBUS
+    modbusSHI.setPCSetpoint(val);
+    return true;
+#endif
+  return false;
+}
 
 /// @brief 
 /// @param mode SmartGrid-Mode
@@ -463,7 +470,7 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   case 1:
     setcolor('b');
     sendSGreadyURL(varStore.varSG_s_sg1);
-    
+    setSHIPCSetpoint(varStore.varSHI_i_pcsp1);
     setRelay(1,1);
     setRelay(2,0);
     
@@ -471,20 +478,21 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   case 2:
     setcolor('g');
     sendSGreadyURL(varStore.varSG_s_sg2);
-   
+    setSHIPCSetpoint(varStore.varSHI_i_pcsp2);
     setRelay(1,0);
     setRelay(2,0);
     break;
   case 3:
     setcolor('y');
     sendSGreadyURL(varStore.varSG_s_sg3);
-  
+    setSHIPCSetpoint(varStore.varSHI_i_pcsp3);
     setRelay(1,0);
     setRelay(2,1);
     break;
   case 4:
     setcolor('r');
     sendSGreadyURL(varStore.varSG_s_sg4);
+    setSHIPCSetpoint(varStore.varSHI_i_pcsp4);
     setRelay(1,1);
     setRelay(2,1);
     break;  
@@ -739,7 +747,11 @@ String setHtmlVar(const String& var)
   {
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
-      sFetch += smartgrid.getHourVar1(i); //String(smartgrid_hour[i].var1);
+#ifdef SHI_MODBUS
+      sFetch += smartgrid.getHourVar1(i); // toto: PC-Setpoint daten anzeigen
+#else
+      sFetch += smartgrid.getHourVar1(i);
+#endif
       if (i < SG_HOURSIZE-1)
       {
         sFetch += ',';
@@ -939,7 +951,7 @@ String setHtmlVar(const String& var)
   if (var == "SHIPCSETPOINT")
   {
     //return "1.6";
-    return String(float(modbusSHI.getPCSetpoint())/100.0, 1);
+    return String(float(modbusSHI.getPCSetpoint())/10.0, 1);
   }
 
   return "";
@@ -953,7 +965,7 @@ void notFound(AsyncWebServerRequest *request)
 
 void initWebServer()
 { 
-  // --------------- Basis Seiten:----------------------------------
+  // --------------- Base Pages:----------------------------------
   //Route for root / web page
   webserver.on("/",          HTTP_GET, [](AsyncWebServerRequest *request)
   {https://
@@ -997,6 +1009,11 @@ void initWebServer()
    request->send(myFS, "/temp_inside.png", String(), false, setHtmlVar);
   });
   
+  webserver.on("/temp_outside.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/temp_outside.png", String(), false, setHtmlVar);
+  });
+
   //Route for Luxtronik details page
   webserver.on("/luxtronik.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
@@ -1051,9 +1068,6 @@ void initWebServer()
   });
   
 
-
-
-  
   webserver.on("/fetch", HTTP_GET, [](AsyncWebServerRequest *request)
   {
                                                                       // Index:
@@ -1088,10 +1102,27 @@ void initWebServer()
    request->send(myFS, "/style.css", String(), false);
   });
 
-  // Route for manifest
+  
+  // ...a lot of code only for icons and favicons ;-))
   webserver.on("/manifest.json",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
    request->send(myFS, "/manifest.json", String(), false);
+  });
+  webserver.on("/favicon.ico",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/favicon.ico", String(), false);
+  });
+  webserver.on("/apple-touch-icon.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/apple-touch-icon.png", String(), false);
+  });
+  webserver.on("/android-chrome-192x192.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/android-chrome-192x192.png", String(), false);
+  });
+  webserver.on("/android-chrome-384x384.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/android-chrome-384x384.png", String(), false);
   });
   
 
@@ -1175,7 +1206,6 @@ void initWebServer()
     //debug_println("server.on /fetchmeter: "+ s);
   });
 
-
   // -------------------- POST --------------------------------------------------
    // sgready.html POST
    #ifdef SG_READY
@@ -1185,7 +1215,7 @@ void initWebServer()
     int iVal  = request->arg(i).toInt();
     const String sArg = request->argName(0);
     debug_printf(      "sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
-    AsyncWebLog.printf("sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
+    //AsyncWebLog.printf("sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
  
     if (sArg == "sg1")
     {
@@ -1249,13 +1279,13 @@ void initWebServer()
          if (sName == "range_temp")
          {
            debug_println("[SHI] SET-TEMP-OFFSET !!!");
-           modbusSHI.setHeatOffset(2, uint16_t(sVal.toFloat()*10));
+           modbusSHI.setHeatOffset(int16_t(sVal.toFloat()*10.0));
          }
          else
          if (sName == "range_kw")
          {
           debug_println("[SHI] SET-KW !!!");
-          modbusSHI.setPCSetpoint(2, uint16_t(sVal.toFloat()*100));
+          modbusSHI.setPCSetpoint(int16_t(sVal.toFloat()*10.0));
          }
          request->send(myFS, "/shi.html", String(), false, setHtmlVar); 
     });
@@ -1267,8 +1297,6 @@ void initWebServer()
   webserver.onNotFound(notFound);
   webserver.begin();
   }
-#else
-  void initWebServer() {};
 #endif // WEB_APP
 
 
@@ -1340,9 +1368,13 @@ void loop()
 #ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
     smartgrid.loop(&tt);
+    if (smartgrid.bRule_OFF)
+    {AsyncWebLog.printf("[SGR] Rule **OFF** !\r\n");}
 #endif
 #ifdef SHI_MODBUS
     modbusSHI.poll();
+    AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
+    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());  
 #endif
 
     if (looptm->tm_hour == 0 && looptm->tm_min ==0 && looptm->tm_sec < 7)
@@ -1356,10 +1388,9 @@ void loop()
     if (luxws.isConnected())
     {
       AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
-      AsyncWebLog.printf("WP-State:             \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
+      AsyncWebLog.printf("WP-State:             \t %s\r\n", luxws.getval(LUX_VAL_TYPE::BETRIEBSZUSTAND, false));
       //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
       //AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
-     
     }
     else
     {
