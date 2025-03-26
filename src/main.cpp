@@ -341,7 +341,7 @@ class SmartGridEPEX : public SmartGrid
 
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
-        setHourVar1(i, DEFAULT_SGREADY_MODE);
+      setHour_iVarSGready(i, DEFAULT_SGREADY_MODE);
     }
     bRule_OFF = false; // is set at rule "OFF"
 #ifdef SG_READY
@@ -360,7 +360,7 @@ class SmartGridEPEX : public SmartGrid
   /// @param hour 
   void setAppOutputFromRules(uint8_t hour) final
   {
-    setSGreadyOutput(this->getHourVar1(hour));
+    setSGreadyOutput(getHour_iVarSGready(hour));
   }
 #endif
 #endif
@@ -454,7 +454,7 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
 #ifdef WEB_APP
   AsyncWebLog.printf("SGreadyMode: %d  hour:%d\r\n",mode, hour);   
 #endif
-  smartgrid.setHourVar1(hour, mode); // override if value has changed
+  smartgrid.setHour_iVarSGready(hour, mode); // override if value has changed
   String sURL;
   sURL.reserve(50);
   
@@ -723,7 +723,7 @@ String setHtmlVar(const String& var)
   if (var == "SGMODE")
   {
     //switch (SmartGridReadyStatus)
-    switch (smartgrid.getHourVar1(ntpclient.getTimeInfo()->tm_hour))
+    switch (smartgrid.getHour_iVarSGready(ntpclient.getTimeInfo()->tm_hour))
     {
     case 1:
       return "sg1";
@@ -748,7 +748,7 @@ String setHtmlVar(const String& var)
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
 #ifdef SHI_MODBUS
-      sFetch += smartgrid.getHourVar1(i); // toto: PC-Setpoint daten anzeigen
+      sFetch += smartgrid.getHour_iVarSGready(i); // toto: PC-Setpoint daten anzeigen
 #else
       sFetch += smartgrid.getHourVar1(i);
 #endif
@@ -1074,7 +1074,7 @@ void initWebServer()
     sFetch = ntpclient.getTimeString();                               // 0 = Time: 00:00
     sFetch += ",";
 #ifdef SG_READY
-    sFetch += smartgrid.getHourVar1(ntpclient.getTimeInfo()->tm_hour);// 1 = sg_status
+    sFetch += smartgrid.getHour_iVarSGready(ntpclient.getTimeInfo()->tm_hour);// 1 = sg_status
 #else
     sFetch += "-";
 #endif
@@ -1361,6 +1361,8 @@ void loop()
 #endif
 #ifdef SML_TIBBER
     smldecoder.read(); 
+    luxws.powerInMeter = smldecoder.getWatt();
+    luxws.energyInMeter = smldecoder.getInputkWh();
 #endif  
 #ifdef DS100_MODBUS
     DS100read();

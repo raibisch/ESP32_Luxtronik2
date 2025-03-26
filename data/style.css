@@ -1,3 +1,4 @@
+
 html {
   font-family: monospace;
   display: inline-block;
@@ -179,6 +180,11 @@ textarea{
   cursor: pointer;
 }
 
+:root {
+  --ringcolor: black;
+  --pwrplus:10deg;
+}
+
 .outerring, .outerring_blink {
   display: inline-block;
   width: 80%;
@@ -186,7 +192,10 @@ textarea{
   max-width: 360px;
   border-radius: 3rem;
   position: relative;
-  background-color: black;
+  background: conic-gradient(
+    green 0deg var(--pwrplus),
+    var(--ringcolor) 0deg 360deg
+  );
   margin: 10px;
 }
 
@@ -289,14 +298,14 @@ textarea{
   justify-content: space-between;
   margin-left: 17px;
   font-size: 0.8rem;
-  padding: 03px;
+  padding: 1px; 
 }
 
 .sliderticks span {
   display: flex;
   justify-content: center;
   width: 3px;
-  height: 8px;
+  height: 5px;
   background: red;
   line-height: 30px;
 }
@@ -359,7 +368,6 @@ input[type="range"]::-moz-range-thumb {
   border-width: 3px;
   border-color: gray;
 }
-
 
 input[type="radio"] {
   appearance: none;

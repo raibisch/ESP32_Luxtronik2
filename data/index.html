@@ -67,8 +67,8 @@
         </table>
         <table>
             <tr>
-              <td id="VD_ONTIME" onclick="'http://192.168.2.23/#/Devices/97/Log'">--</td>
-              <td id="VD_RPM"    onclick="'http://192.168.2.23/#/Devices/99/Log'">--</td>
+              <td id="VD_ONTIME" onclick="window.location.href='http://192.168.2.23/#/Devices/97/Log'">--</td>
+              <td id="VD_RPM"    onclick="window.location.href='http://192.168.2.23/#/Devices/99/Log'">--</td>
               <td id="VE_RPM">--</td>
             </tr>
             <tr>
@@ -97,7 +97,8 @@
     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
          
     <script type="text/javascript">
-            
+
+          
             function luxrequest()
             {
              // Test:
@@ -116,11 +117,34 @@
               sgrStatus = String(myArray[1]);
               wpStatus = "--";
               
-              // Test
-              //document.getElementById("HEADLINE").innerHTML = '%DEVICEID%' + '&emsp;' + '11:20';
+              // PV-Anteil al ring-Anteil darstellen
+              var r = document.querySelector(':root');
+              r.style.setProperty('--ringcolor', 'red');
 
               if (myArray[1] != null)
               {
+               // pv Anteil 
+               let pwrmeter_in = myArray[38];
+               let wprwp_in    = myArray[2];
+               if (pwrmeter_in > wprwp_in)
+               {
+                 pvdeckung = 1;
+               }
+               else
+               if (pwrmeter_in <= 0)
+               {
+                pvdeckung = 360;
+               }
+               else
+               {
+                pvdeckung = pwprp_in - pwrmeter_in;
+               }
+
+               pvdeckung = int((pwrmeter_in*360) / pwprp_in);
+
+               let _txt = pvdeckung.toString() + 'deg';
+               r.style.setProperty('--pwrplus', _txt);
+
                document.getElementById('HEADLINE').innerHTML = '%DEVICEID%' + '&emsp;' + myArray[0];
                document.getElementById('SGR_STATUS').innerHTML  = "SGready-Mode:" + sgrStatus;
                document.getElementById('TEMP_ROOM').textContent = myArray[37];
@@ -132,6 +156,7 @@
               var wpIcon = 'poweroff.png';
               if (wpStatus.length <2)
               {
+
                 document.getElementById('RING_ID').style.background = 'gray';
                 wpStatus = 'OFF';
               }
@@ -139,20 +164,24 @@
               if (wpStatus.indexOf('Hei') >=0)
               {
                 wpIcon = 'radiator.png';
-                document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'red';
+                document.getElementById('RING_ID').className = "outerring_blink"; 
+                //document.getElementById('RING_ID').style.background = 'red';
+                r.style.setProperty('--ringcolor', 'red');
+
               }
               else if (wpStatus.indexOf('AB') >=0)
               {
                 wpIcon = 'defrost.png';
                 document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'blue';
+                //document.getElementById('RING_ID').style.background = 'blue';
+                r.style.setProperty('--ringcolor', 'blue');
               }
               else if (wpStatus.indexOf('W') >= 0)
               { 
                 wpIcon = 'hotwater.png';
                 document.getElementById('RING_ID').className = "outerring_blink";
-                document.getElementById('RING_ID').style.background = 'orange';
+                //document.getElementById('RING_ID').style.background = 'orange';
+                r.style.setProperty('--ringcolor', 'orange');
               }
               document.getElementById('WP_STATUS').innerHTML = wpStatus;
               document.getElementById('ICON_IMG').src = wpIcon;
