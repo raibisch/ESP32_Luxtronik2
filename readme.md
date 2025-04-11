@@ -67,17 +67,17 @@ Update: now possible with Smart-Home-Interface !
 ```
 varDEVICE_s_name=ESP_LUXTRONIK2;
 varWIFI_s_mode=STA;  // AP=AccessPoint STA=Station
-varWIFI_s_password=###ud361309$$$;
-varWIFI_s_ssid=SMC4;
+varWIFI_s_password=mypassword;
+varWIFI_s_ssid=mySSID;
 
 ; SML Adapter (Tibber-Pulse or Tasmota SML-Meter)
-varSML_s_url = 192.168.2.87;
-varSML_s_password = D8LM-B7B5;
+varSML_s_url = 192.168.0.xx;
+varSML_s_password = xxxx-xxxx;
 varSML_s_user = admin;
 
 ; Luxtronik Web-Interface
-varLUX_s_url=192.168.2.101;
-varLUX_s_password =999999;
+varLUX_s_url=192.168.2.xx;
+varLUX_s_password =00000;
 
 ; EPEX Price (inc. tax)
 varEPEX_i_high = 30;
