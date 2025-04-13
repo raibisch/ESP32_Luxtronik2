@@ -53,7 +53,7 @@
               <th>TA[&#8451;]</th>
             </tr>
             <tr>
-              <td id="HUP_LH">--</td>
+              <td id="HUP_LH" onclick="window.location.href='http://192.168.2.23/#/Devices/98/Log'">--</td>
               <td id="RL_VL_IST">--</td>
               <td id="RLSOLL_RLIST">--</td>
               <td id="RL_SOLL" onclick="window.location.href='http://192.168.2.23/#/Devices/81/Log'">--</td>
@@ -108,9 +108,8 @@
             }
             function reqListener ()
             {
+              //var myResponse = "08:02,1,0.50,Heizen,19.3,7.0,29.4,30.0,34.1,0.67,2.57,2206.0,310.7,2516.7,8125.3,1101.6,9226.9,3.97,0.00,3.97,534,30.0,Aus,Aus,1798,7.8,3.69,10.82,23.9,0.0,0.0,649,6.3,24.03.25 11:42,01:09:43,29.1,1800,20.6,-125,end"
               var myResponse = this.responseText;
-              //myResponse = myResponse.toUpperCase();
-              //console.log(this.responseText);
               var myArray = myResponse.split(",");
             
               //console.log(myArray);
@@ -125,22 +124,23 @@
               {
                // pv Anteil 
                let pwrmeter_in = myArray[38];
-               let wprwp_in    = myArray[2];
-               if (pwrmeter_in > wprwp_in)
+               let pwrwp_in    = myArray[2] *1000;
+               let pvdeckung = 0;
+               if (pwrmeter_in > pwrwp_in)
                {
-                 pvdeckung = 1;
+                 pvdeckung = 2;
                }
                else
                if (pwrmeter_in <= 0)
                {
-                pvdeckung = 360;
+                pvdeckung = 358;
                }
                else
                {
-                pvdeckung = pwprp_in - pwrmeter_in;
+                pvdeckung = pwrwp_in - pwrmeter_in;
+                pvdeckung = (1- (pwrmeter_in / pwrwp_in))*360 ;
+                pvdeckung = Math.floor(pvdeckung);
                }
-
-               pvdeckung = int((pwrmeter_in*360) / pwprp_in);
 
                let _txt = pvdeckung.toString() + 'deg';
                r.style.setProperty('--pwrplus', _txt);
@@ -156,7 +156,6 @@
               var wpIcon = 'poweroff.png';
               if (wpStatus.length <2)
               {
-
                 document.getElementById('RING_ID').style.background = 'gray';
                 wpStatus = 'OFF';
               }

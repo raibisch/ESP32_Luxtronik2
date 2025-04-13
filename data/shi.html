@@ -11,11 +11,12 @@
     </head>
 
     <body >
-         <h2>Smart-Home-Interface</h2>
+         <h2>Smart-Home-Interface (SHI)</h2>
          </p>
+         <hr>
          <div class="range">
           <div class="range-slider">
-            <label for="range"> Temp. Korrektur [K]:</label><br />
+            <label for="range"> Temp. Korrektur [K]</label><br />
             <form id="set_temp" action="" method="POST">
              <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-1.5" max="1.5" value="%SHIHEOFFSET%"  step="0.5"/>
             </form>
@@ -32,14 +33,16 @@
           <div id="val_temp" class="value">%SHIHEOFFSET%</div>
          </div>
          <input class="buttonsmallred" type="submit"  value="SET" onclick="submitTemp()">
-         <div style="height: 50px;"> </div>
+         <hr>
+         <div style="height: 10px;"> </div>
          <div class="range">
             <div class="range-slider">
-              <label for="range"> Max. WP Leistung [kW]:</label><br />
+              <label for="range"> PC-Setppoint Limit [kW]</label><br />
               <form id="set_kw" action="" method="POST">
-              <input type="range" id="range_kw" name="range_kw" onchange="changeKW()" min="0.9" max="2.1" value="%SHIPCSETPOINT%"  step="0.1"/>
+              <input type="range" id="range_kw" name="range_kw" onchange="changeKW()" min="0.8" max="2.1" value="%SHIPCSETPOINT%"  step="0.1"/>
               </form>
               <div class="sliderticks">
+                <span>0.8</span>
                 <span></span>
                 <span>1.0</span>
                 <span></span>
@@ -51,18 +54,16 @@
                 <span></span>
                 <span>1.8</span>
                 <span></span>
-                <span></span>
-                <span>MAX</span>
+                <span>2.0</span>
+                <span>max</span>
               </div>
             </div>
             <div id="val_kw" class="value">%SHIPCSETPOINT%</div>
          </div>
-         <input class="buttonsmallred" type="submit" id="set_shi_kw"  value="SET" onclick="submitKW()">
-
-          <!--
+         <input class="buttonsmallred" type="submit" id="set_shi_kw"  value="SET" onclick="submitKW()">          
          <div class="range">
           <div class="range-slider">
-            <label for="range"> PC-Setpoint-Limit:</label><br/>
+            <label for="range"> PC-Setpoint Mode</label><br/>
             <form id="set_pcmode" action="" method="POST">
              <input type="range"  id="range_pcmode" name="range_pcmode"  min="0" max="2" value="%SHIPCMODE%"/>
             </form>
@@ -75,7 +76,8 @@
           <div class="value"> </div>
          </div>
          <input class="buttonsmallred" type="submit" value="SET" onclick="submitPCMode()">
-         -->
+         <hr>
+         
          <div style="height: 10px;"> </div>
          <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
          <button type="button" class="image-btn" > </button>

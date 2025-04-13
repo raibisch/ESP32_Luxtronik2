@@ -1089,7 +1089,7 @@ void initWebServer()
     sFetch += luxws.getCSVfetch(true);                                 // 3...36
     sFetch += String(luxws.tempRoom,1);                                // 37
     sFetch += ',';
-    sFetch += String(luxws.powerInMeter);                              // 38
+    sFetch += String(luxws.power_Main_InMeter);                        // 38
     sFetch += ",end";     
 
     //debug_printf("server.on fetch: %s",sFetch.c_str());
@@ -1356,16 +1356,17 @@ void loop()
     tm* looptm = ntpclient.getTimeInfo();
     debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
     AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
+    
 #ifdef MQTT_CLIENT
     AsyncWebLog.printf("Raum-Temp: %2.1f \r\n", luxws.tempRoom);
 #endif
 #ifdef SML_TIBBER
     smldecoder.read(); 
-    luxws.powerInMeter = smldecoder.getWatt();
-    luxws.energyInMeter = smldecoder.getInputkWh();
+    luxws.power_Main_InMeter = smldecoder.getWatt();
 #endif  
 #ifdef DS100_MODBUS
     DS100read();
+    luxws.energy_Sub_InMeter =  valDS100_L1_KWH;
 #endif
 #ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
@@ -1389,8 +1390,10 @@ void loop()
     }
     if (luxws.isConnected())
     {
-      AsyncWebLog.printf("WS-POLL-State:        \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
-      AsyncWebLog.printf("WP-State:             \t %s\r\n", luxws.getval(LUX_VAL_TYPE::BETRIEBSZUSTAND, false));
+      AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
+      AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::BETRIEBSZUSTAND, false));
+      AsyncWebLog.printf("WP-PowerIn:       \t %s\r\n", luxws.getval(LUX_VAL_TYPE::POWER_IN, false));
+      
       //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
       //AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
     }

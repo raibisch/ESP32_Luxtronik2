@@ -1,29 +1,35 @@
 
-# LUXTRONIK HEATPUMP WEBSERVICE WEB-APP for ESP32 (all variants of ESP32)
+# ESP32 LUXTRONIK HEATPUMP WEBSERVICE WEB-APP (all variants of ESP32)
 
 ESP32 LUXTRONIK Heatpump Controller Interface based on Websocket (for Heatpumps from alpha-inotec, Novelan, Nibe, Bosch,..)
 List and calculate most of the values from Luxtronik on a ESP32 Microcontroller.
 
+# Basic information for Luxtronik communication
+there are 3 known Interfaces for Luxtronik:
+* XML-based Websocket communication over port 8214 (this is used in this project in commbination with the new Modbus-TCP)
+* Binary TCP-Socket communication over Port 8889
+* new (Luxtronik >V3.90.2): Modbus-TCP communication (Smart-Home-Interface)
 
-(this Version has been developed and tested based on software version V3.90.4, not testet with V2.x, does not work with V1.x)
+(this Version has been developed and tested based on software version >V3.90.2, not testet with V2.x, does not work with V1.x)
 
 .. a wild mix of german and (in source code) english.
 (if it is usefull for other users there is no problem to communictate at ISSUES or PULL REQUESTS in english)
 
 
-## Add-Ons:
-
-- Tibber-Puls Adapter Integration
-- SGready (Smart-Grid-Ready Relay-Interface) with Hardware or Tasmota or Shelly Relais
-- Smart-Home-Interface (SHI) (needs firmware Luxtronik 2.1 >=  V3.90.2)
-- Shelly HT3 indoor room temperatur sensor via MQTT
-- API and visualisation of EPEX-Price Data including local fix costs and tax
-- RS485 Modbus integration for DS100 Energy-Meter (needs extra hardware)
-
 ## Highlights:
+- [Smart-Home-Interface integration](https://github.com/raibisch/mylibs/blob/main/LuxModbusSHI/LuxtronikSHI.md) 
 - online COP calculation (actual, day and sum)
 - some extra calculation for delta temperature values
 - use HTTP-Get: '/fetch' and '/fetchmeter' for getting CSV-values to home-automation programs 
+
+
+## Add-Ons:
+- Tibber-Puls Adapter Integration
+- SGready (Smart-Grid-Ready Relay-Interface) with Hardware or Tasmota or Shelly Relais
+- [Smart-Home-Interface integration (SHI)](https://github.com/raibisch/mylibs/blob/main/LuxModbusSHI/LuxtronikSHI.md)  (needs firmware Luxtronik 2.1 >=  V3.90.2)
+- read Shelly HT3 indoor room temperatur sensor via MQTT
+- API and visualisation of EPEX-Price Data including local fix costs and tax
+- RS485 Modbus integration for DS100 Energy-Meter (needs extra hardware)
 
 ## todo:
 
@@ -68,16 +74,16 @@ Update: now possible with Smart-Home-Interface !
 varDEVICE_s_name=ESP_LUXTRONIK2;
 varWIFI_s_mode=STA;  // AP=AccessPoint STA=Station
 varWIFI_s_password=mypassword;
-varWIFI_s_ssid=mySSID;
+varWIFI_s_ssid=MYSSID;
 
 ; SML Adapter (Tibber-Pulse or Tasmota SML-Meter)
-varSML_s_url = 192.168.0.xx;
+varSML_s_url = 192.168.xx.xx;
 varSML_s_password = xxxx-xxxx;
 varSML_s_user = admin;
 
 ; Luxtronik Web-Interface
-varLUX_s_url=192.168.2.xx;
-varLUX_s_password =00000;
+varLUX_s_url=192.168.xx.xx;
+varLUX_s_password =xxxxxxx;
 
 ; EPEX Price (inc. tax)
 varEPEX_i_high = 30;
@@ -100,10 +106,10 @@ varSG_s_out1 = GPIO_12;
 varSG_s_out2 = GPIO_10;
 
 ; SG-ready Signals for shelly double relay
-varSG_s_sg1 = http://192.168.2.25/rpc/Script.Start?id=1;
-varSG_s_sg2 = http://192.168.2.25/rpc/Script.Start?id=2;
-varSG_s_sg3 = http://192.168.2.25/rpc/Script.Start?id=3;
-varSG_s_sg4 = http://192.168.2.25/rpc/Script.Start?id=4;
+varSG_s_sg1 = http://192.168.xx.xx/rpc/Script.Start?id=1;
+varSG_s_sg2 = http://192.168.xx.xx/rpc/Script.Start?id=2;
+varSG_s_sg3 = http://192.168.xx.xx/rpc/Script.Start?id=3;
+varSG_s_sg4 = http://192.168.xx.xx/rpc/Script.Start?id=4;
 
 
 ; SG-Ready Power-Limit with Smart-Meter-Interface
@@ -133,7 +139,7 @@ Define up to 6 (X=1..6) rules for switching Smart-Grid value 1..4
 |SG-Ready-Mode  | 1..4              | set 'varSG_i_sg1..4'          |
 | "  "     "    |   "               | set 'varSHI_i_pcsp1..4        |
 |               |                   |                               |
-| var1          | 0..47             |                               |
+| var1          | 0..100            |                               |
 |               |                   |                               |
 | RULE          | FIX               |TRUE at: start- until end-hour       |
 | RULE          | EPEX_HIGHLIMIT    |TRUE if hour-price >= var1           |
