@@ -234,19 +234,19 @@
       var dataset_sg = myChart_sg.data.datasets[0];
       for (var i = 0; i < dataset_sg.data.length; i++) 
       {
-       if (dataset_sg.data[i] == 1){
+       if (dataset_sg.data[i] < 9){
         dataset_sg.backgroundColor[i] = chartColors.blue;
        }
        else
-       if (dataset_sg.data[i] == 2){
+       if (dataset_sg.data[i] < 11){
         dataset_sg.backgroundColor[i] = chartColors.green;
        }
        else
-       if (dataset_sg.data[i] == 3) {
+       if (dataset_sg.data[i] < 12) {
         dataset_sg.backgroundColor[i] = chartColors.yellow;
        }
        else
-       if (dataset_sg.data[i] == 4) {
+       {
         dataset_sg.backgroundColor[i] = chartColors.red;
        }
       }

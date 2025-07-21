@@ -37,11 +37,6 @@
 #include "LuxModbusSHI.h"
 #endif
 
-//external libs
-#ifdef SML_JSON
-#include "ArduinoJson.h"
-#endif
-
 // special for S2 and S4
 #if defined ESP_S2_MINI || ESP_S3_ZERO
 #include "driver/temp_sensor.h"
@@ -51,8 +46,8 @@
 #include "ds100.h"
 
 #ifdef ESP32_DEVKIT1
+#if !((defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2) || defined ESP32_NORELAY_X4)
 #pragma message("Info : ESP32_DEVKIT")
-#if !(defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
 #define LED_GPIO 2
 #endif
 #endif
@@ -72,7 +67,7 @@
  #define LED_GPIO 10
 #endif
 
-const char* SYS_Version = "V 0.9.5";
+const char* SYS_Version = "V 0.9.6";
 const char* SYS_CompileTime =  __DATE__;
 static String  SYS_IP = "0.0.0.0";
 
@@ -80,6 +75,8 @@ static String  SYS_IP = "0.0.0.0";
 // internal Webserver                                
 AsyncWebServer webserver(80);
 #endif
+
+WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-Interface *and* ModbusTCPClient
 
 #ifdef LUX_WEBSERVICE
 LuxWebsocket luxws; // Luxtronik Webservice
@@ -90,12 +87,7 @@ LuxWebsocket luxws; // Luxtronik Webservice
 SMLdecode smldecoder;
 #endif
 
-WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-Interface *und* ModbusTCPClient
-
 #ifdef MQTT_CLIENT
-// old:
-//PicoMQTT::Client mqtt("192.168.2.22");
-// set parameter later:
 PicoMQTT::Client mqtt;
 #endif
 
@@ -104,7 +96,9 @@ LuxModbusSHI modbusSHI;
 #endif
 
 // fetch String;
-static String sFetch;
+String sFetch;
+
+static bool _bNewDay = false;
 
 // ntp client
 const char* TimeServerLocal = "192.168.2.1";
@@ -112,11 +106,10 @@ const char* TimeServer      = "europe.pool.ntp.org";
 const char* TimeZone        = "CET-1CEST,M3.5.0,M10.5.0/3";       // Central Europe
 ESP32ntp ntpclient;
 
-
 const long   TimerFastDuration = 300;
 long   TimerFast = 0;
 const long   TimerSlowDuration   = 2000;   
-long   TimerSlow = 0;     
+long   TimerSlow = 0;    
 
 #ifdef ESP32_S3_ZERO
 static char neopixel_color = 'w';
@@ -124,7 +117,6 @@ static char neopixel_color = 'w';
 #else
 #define setcolor(...)
 #endif
-
 
 /// @brief  set builtin LED
 /// @param i = HIGH / LOW
@@ -184,30 +176,6 @@ inline void initLED()
   setLED(1);
 }
 
-#ifdef MQTT_CLIENT
-char _buf[30];
-XPString s(_buf,30);
-char _bufval[6];
-XPString sval(_bufval,6);
-void inline initMQTT()
-{
-  // MQTT settings can be changed or set here instead
-  mqtt.host = "192.168.2.22";
-  mqtt.client_id = "esplux" + WiFi.macAddress();
-  // Subscribe to a topic and attach a callback
-  mqtt.subscribe("shellies/status/temperature:0", [](const char * topic, const char * payload)
-  {
-    debug_printf("MQTT: '%s' = %s\n", topic, payload); 
-    AsyncWebLog.printf("MQTT: %s: %s\r\n", topic, payload);
-    s = payload;
-    s.substringBeetween(sval,"tC",4,",",0);
-    AsyncWebLog.printf("Room-Temp: (%s) \r\n", sval.c_str());
-    luxws.tempRoom = atof(sval);
-  });
-  mqtt.begin();
-}
-#endif
-
 void inline initFS()
 {
   if (!myFS.begin())
@@ -219,6 +187,7 @@ void inline initFS()
    debug_println("* INFO:FS Mount succesfull");
   }
 }
+
  
 
 //////////////////////////////////////////////////////
@@ -236,7 +205,11 @@ class WPFileVarStore final: public FileVarStore
 
    String varLUX_s_url      = "192.168.2.101";
    String varLUX_s_password = "999999";
-   String varMQTT_s_url     = "192.168.2.22";
+
+  #ifdef MQTT_CLIENT
+   String varMQTT_s_url       = "192.168.2.22";
+   String varMQTT_s_shellyht = "shellies/shellyhtg3-wohnzimmer/status/temperature:0";
+  #endif
 
 #if defined EPEX_PRICE || defined SG_READY
    int    varEPEX_i_low     = 22;   // cent per kwh
@@ -270,6 +243,7 @@ uint16_t varSHI_i_pcsp2      = 14;
 uint16_t varSHI_i_pcsp3      = 14;
 uint16_t varSHI_i_pcsp4      = 14;
 #endif
+
 
  protected:
    void GetVariables() 
@@ -310,15 +284,47 @@ uint16_t varSHI_i_pcsp4      = 14;
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
 #endif 
 #ifdef SHI_MODBUS
-     varSHI_i_pcsp1           = GetVarInt(GETVARNAME(varSHI_i_pcsp1),12);
-     varSHI_i_pcsp2           = GetVarInt(GETVARNAME(varSHI_i_pcsp2),12);
-     varSHI_i_pcsp3           = GetVarInt(GETVARNAME(varSHI_i_pcsp3),12);
-     varSHI_i_pcsp4           = GetVarInt(GETVARNAME(varSHI_i_pcsp4),12);
+     varSHI_i_pcsp1     = GetVarInt(GETVARNAME(varSHI_i_pcsp1),12);
+     varSHI_i_pcsp2     = GetVarInt(GETVARNAME(varSHI_i_pcsp2),12);
+     varSHI_i_pcsp3     = GetVarInt(GETVARNAME(varSHI_i_pcsp3),12);
+     varSHI_i_pcsp4     = GetVarInt(GETVARNAME(varSHI_i_pcsp4),12);
+#endif
+#ifdef MQTT_CLIENT      
+     varMQTT_s_url       = GetVarString(GETVARNAME(varMQTT_s_url));
+     varMQTT_s_shellyht  = GetVarString(GETVARNAME(varMQTT_s_shellyht)); 
 #endif
    }
 };
 
 WPFileVarStore varStore;
+
+
+
+#ifdef MQTT_CLIENT
+char _buf[30];
+XPString s(_buf,30);
+char _bufval[6];
+XPString sval(_bufval,6);
+void inline initMQTT()
+{
+  // MQTT settings can be changed or set here instead
+  mqtt.host = varStore.varMQTT_s_url;
+  mqtt.client_id = "esplux" + WiFi.macAddress();
+  // Subscribe to a topic and attach a callback: shelly HT3
+  mqtt.subscribe(varStore.varMQTT_s_shellyht, [](const char * topic, const char * payload)
+  {
+    debug_printf("MQTT: '%s' = %s\n", topic, payload); 
+    AsyncWebLog.printf("MQTT: %s: %s\r\n", topic, payload);
+    s = payload;
+    s.substringBeetween(sval,"tC",4,",",0);
+    
+    AsyncWebLog.printf("Room-Temp: (%s) \r\n", sval.c_str());
+    luxws.tempRoom = atof(sval);
+  });
+  mqtt.begin();
+}
+#endif
+
 
 #ifdef SG_READY
 void setSGreadyOutput(uint8_t mode, uint8_t hour=24);
@@ -385,7 +391,6 @@ class SmartGridEPEX : public SmartGrid
 #endif
 };
 
-
 #define URL_ENERGY_CHARTS "api.energy-charts.info" 
 SmartGridEPEX smartgrid(URL_ENERGY_CHARTS);
 #endif
@@ -398,7 +403,6 @@ bool sendSGreadyURL(String s)
 {
   HTTPClient http;
   
-  http.setConnectTimeout(500); // 13.03.2025 fix: if url not found or down
   if (s.startsWith("http:") == false)
   {
     AsyncWebLog.printf("No HTTP sendSGreadString:  %s\r\n" ,s.c_str());
@@ -408,7 +412,7 @@ bool sendSGreadyURL(String s)
   AsyncWebLog.printf("sendSGreadURL: %s\r\n", s.c_str());
   int getlength;
   s.replace('#','%'); // because % % is used as html insert marker
-  http.setConnectTimeout(500); // 16.02.2025 fix: if url not found or down
+  http.setConnectTimeout(800); // 16.02.2025 fix: if url not found or down
   http.begin(wificlient, s);
   int httpResponseCode = http.GET();
   
@@ -433,14 +437,41 @@ bool sendSGreadyURL(String s)
   return false;
 }
 
-bool setSHIPCSetpoint(uint val)
+/// @brief internel helper function
+/// @param val of PC-Setpoint
+void setSHIPCSetpoint(uint val)
 {
 #ifdef SHI_MODBUS
     modbusSHI.setPCSetpoint(val);
-    return true;
 #endif
-  return false;
 }
+
+
+uint getSHIPCSetpoint(uint8_t sgrmode)
+{
+  uint setpoint = 10;
+#ifdef SHI_MODBUS
+  switch (sgrmode)
+  {
+  case 1:
+    setpoint = varStore.varSHI_i_pcsp1;
+    break;
+  case 2:
+    setpoint = varStore.varSHI_i_pcsp2;
+    break;
+  case 3:
+    setpoint = varStore.varSHI_i_pcsp3;
+    break;
+  case 4:
+     setpoint = varStore.varSHI_i_pcsp4;
+    break;
+  default:
+    break;
+  }
+#endif
+  return setpoint;
+}
+
 
 /// @brief 
 /// @param mode SmartGrid-Mode
@@ -470,7 +501,9 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   case 1:
     setcolor('b');
     sendSGreadyURL(varStore.varSG_s_sg1);
+#ifdef SHI_MODBUS
     setSHIPCSetpoint(varStore.varSHI_i_pcsp1);
+#endif
     setRelay(1,1);
     setRelay(2,0);
     
@@ -478,21 +511,27 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   case 2:
     setcolor('g');
     sendSGreadyURL(varStore.varSG_s_sg2);
+#ifdef SHI_MODBUS
     setSHIPCSetpoint(varStore.varSHI_i_pcsp2);
+#endif
     setRelay(1,0);
     setRelay(2,0);
     break;
   case 3:
     setcolor('y');
     sendSGreadyURL(varStore.varSG_s_sg3);
+#ifdef SHI_MODBUS
     setSHIPCSetpoint(varStore.varSHI_i_pcsp3);
+#endif
     setRelay(1,0);
     setRelay(2,1);
     break;
   case 4:
     setcolor('r');
     sendSGreadyURL(varStore.varSG_s_sg4);
+#ifdef SHI_MODBUS
     setSHIPCSetpoint(varStore.varSHI_i_pcsp4);
+#endif
     setRelay(1,1);
     setRelay(2,1);
     break;  
@@ -548,13 +587,7 @@ void initWiFi()
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(varStore.varDEVICE_s_name.c_str());
     WiFi.begin(varStore.varWIFI_s_ssid.c_str(), varStore.varWIFI_s_password.c_str());
-    #if defined ESP32_S3_ZERO || defined MINI_32 || defined M5_COREINK
-    WiFi.setTxPower(WIFI_POWER_7dBm);// brownout problems with some boards or low battery load for M5_COREINK
-    //WiFi.setTxPower(WIFI_POWER_15dBm);// Test 15dB
-    #endif
-    #if defined DEBUG_PRINT && (defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
-    //WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // decrease power over serial TTY-Adapter
-    #endif
+    
     int i = 0;
     delay(200);
     debug_printf("SSID:%s connecting\r\n", varStore.varWIFI_s_ssid);
@@ -570,14 +603,24 @@ void initWiFi()
           ESP.restart();
         }
     }
-    delay(300);
-    debug_println("CONNECTED!");
-    debug_printf("WiFi-Power:%d\r\n",WiFi.getTxPower())
-    debug_printf("WiFi-RSSI:%d\r\n",WiFi.RSSI());
+
+    #if defined ESP32_S3_ZERO || defined MINI_32 || defined M5_COREINK
+     WiFi.setTxPower(WIFI_POWER_7dBm);// brownout problems with some boards or low battery load for M5_COREINK
+     //WiFi.setTxPower(WIFI_POWER_15dBm);// Test 15dB
+    #elseif defined DEBUG_PRINT && (defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
+    //WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // decrease power over serial TTY-Adapter
+    #else
+     //WiFi.setTxPower(WIFI_POWER_19dBm);
+     WiFi.setTxPower(WIFI_POWER_19_5dBm);
+    #endif
+
+    Serial.println("CONNECTED!");
+    Serial.printf("WiFi-Power:%d\r\n",WiFi.getTxPower());
+    Serial.printf("WiFi-RSSI:%d\r\n",WiFi.RSSI());
       
     SYS_IP = WiFi.localIP().toString();
-    debug_print("IP Address: ");
-    debug_println(SYS_IP);
+    Serial.printf("IP Address: %s", SYS_IP);
+
     if (!ntpclient.begin(TimeZone, TimeServerLocal, TimeServer))
     {
      ESP.restart();
@@ -587,9 +630,8 @@ void initWiFi()
    {
     Serial.println("INFO-WIFI:AP-Mode");
     WiFi.mode(WIFI_AP);
-    WiFi.softAP("esp-captive");   
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.softAPIP().toString());
+    WiFi.softAP("esp-luxtronik");   
+    Serial.printf("IP Address: %s", WiFi.softAPIP().toString());
    }
 }     
 
@@ -612,14 +654,28 @@ void testWiFiReconnect()
 // -------------------- WEBSERVER -------------------------------------------
 // --------------------------------------------------------------------------
 
+/*
+Absturz:
+TIME: 20:37:44
+func:setHtmlVar: DEVICEID
+func:setHtmlVar: DEVICEID
+func:setHtmlVar: LUX_IP
+func:setHtmlVar: DEVICEID
+Guru Meditation Error: Core  1 panic'ed (InstrFetchProhibited). Exception was unhandled.
+
+... tritt setzt nicht mehr auf
+
+*/
+
 /// @brief replace placeholder "%<variable>%" in HTML-Code
 /// @param var 
 /// @return String
+String sLocal;
 String setHtmlVar(const String& var)
 {
+  sLocal = "";
   debug_print("func:setHtmlVar: ");
   debug_println(var);
-  sFetch = "";
  
   if (var == "CONFIG") // read config.txt
   {
@@ -649,34 +705,34 @@ String setHtmlVar(const String& var)
   else
   if (var == "INFO")
   {
-     sFetch =    "Version    :";
-     sFetch += SYS_Version;  
-     sFetch += "\nPlatform   :";
-     sFetch +=  ESP.getChipModel();
-     sFetch += "\nBuild-Date :";
-     sFetch +=  F(__DATE__);
-     sFetch += "\nIP-Addr    :";
-     sFetch += SYS_IP;
-     sFetch += "\nRSSI       :";
-     sFetch += WiFi.RSSI();
-     sFetch += "\nTemp.      :";
-     sFetch += temperatureRead();   
-     sFetch += "\nFreeHeap   :";
-     sFetch += ESP.getFreeHeap();
-     sFetch += "\nMinFreeHeap:";
-     sFetch += ESP.getMinFreeHeap();
+     sLocal =    "Version    :";
+     sLocal += SYS_Version;  
+     sLocal += "\nPlatform   :";
+     sLocal +=  ESP.getChipModel();
+     sLocal += "\nBuild-Date :";
+     sLocal +=  F(__DATE__);
+     sLocal += "\nIP-Addr    :";
+     sLocal += SYS_IP;
+     sLocal += "\nRSSI       :";
+     sLocal += WiFi.RSSI();
+     sLocal += "\nTemp.      :";
+     sLocal += temperatureRead();   
+     sLocal += "\nFreeHeap   :";
+     sLocal += ESP.getFreeHeap();
+     sLocal += "\nMinFreeHeap:";
+     sLocal += ESP.getMinFreeHeap();
 #ifdef SG_READY
-     sFetch += "\n\nEPEX NEXT DATE:";
-     sFetch +=  smartgrid.getWebDate(true); //sEPEXdateNext;
-     sFetch +=  "\n";
-     sFetch += smartgrid.getWebHourValueString(true);
+     sLocal += "\n\nEPEX NEXT DATE:";
+     sLocal +=  smartgrid.getWebDate(true); //sEPEXdateNext;
+     sLocal +=  "\n";
+     sLocal += smartgrid.getWebHourValueString(true);
 
-     sFetch += "\n\nEPEX TODAY:";
-     sFetch +=  "\n";
-     sFetch += smartgrid.getWebHourValueString(false); //sEPEXPriceToday;
-     //sFetch += "\n---\n\n";
+     sLocal += "\n\nEPEX TODAY:";
+     sLocal +=  "\n";
+     sLocal += smartgrid.getWebHourValueString(false); //sEPEXPriceToday;
+     //sLocal += "\n---\n\n";
 #endif
-     return sFetch;
+     return sLocal;
   }
 #ifdef EPEX_PRICE
   else
@@ -748,56 +804,56 @@ String setHtmlVar(const String& var)
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
 #ifdef SHI_MODBUS
-      sFetch += smartgrid.getHour_iVarSGready(i); // toto: PC-Setpoint daten anzeigen
+      sLocal += getSHIPCSetpoint(smartgrid.getHour_iVarSGready(i)); // new: 2025-04-16
 #else
-      sFetch += smartgrid.getHourVar1(i);
+      sLocal += smartgrid.getHour_iVarSGready(i);
 #endif
       if (i < SG_HOURSIZE-1)
       {
-        sFetch += ',';
+        sLocal += ',';
       }
     }
-    //sFetch += '0';
-    return sFetch;
+    //sLocal += '0';
+    return sLocal;
   }
 #ifdef CALC_HOUR_ENERGYPRICE
   else
   if (var == "COSTINFO")
   { 
-     sFetch =      "Flex(ct):";
-    sFetch += String((smartgrid.getUserkWhPrice(ntpclient.getTimeInfo()->tm_hour)),1);
-    sFetch +=   "  Fix (cnt):";
-    sFetch += String(smartgrid.getUserkWhFixPrice(),1);
+     sLocal =      "Flex(ct):";
+    sLocal += String((smartgrid.getUserkWhPrice(ntpclient.getTimeInfo()->tm_hour)),1);
+    sLocal +=   "  Fix (cnt):";
+    sLocal += String(smartgrid.getUserkWhFixPrice(),1);
    
-    sFetch +=  " Hour-kWh : ";
-    sFetch +=  String((smldecoder.getInputkWh() /* valSML_kwh_in */ - smartgrid.hourprice_kwh_start),3);
+    sLocal +=  " Hour-kWh : ";
+    sLocal +=  String((smldecoder.getInputkWh() /* valSML_kwh_in */ - smartgrid.hourprice_kwh_start),3);
 
-    sFetch += "\r\n\r\nHour-flex:";
-    sFetch += String(smartgrid.getFlexprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
+    sLocal += "\r\n\r\nHour-flex:";
+    sLocal += String(smartgrid.getFlexprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
   
-    sFetch +=   "  Day-flex :";
-    sFetch += String(smartgrid.getFlexprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
+    sLocal +=   "  Day-flex :";
+    sLocal += String(smartgrid.getFlexprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
     
-    sFetch +=    " Month-flex:";
-    sFetch += String(smartgrid.getFlexprice_month(ntpclient.getTimeInfo()->tm_mon),2);
+    sLocal +=    " Month-flex:";
+    sLocal += String(smartgrid.getFlexprice_month(ntpclient.getTimeInfo()->tm_mon),2);
 
-    //sFetch +=     "\r\nSum-flex     : ";
-    //sFetch += String(smartgrid.Flexprice_sum + smartgrid.getAktFlexprice(),2);
+    //sLocal +=     "\r\nSum-flex     : ";
+    //sLocal += String(smartgrid.Flexprice_sum + smartgrid.getAktFlexprice(),2);
 
-    sFetch +=    "\r\nHour-fix: ";
-    sFetch += String(smartgrid.getFixprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
+    sLocal +=    "\r\nHour-fix: ";
+    sLocal += String(smartgrid.getFixprice_hour(ntpclient.getTimeInfo()->tm_hour),2);
 
-    sFetch +=     "  Day-fix  :";
-    sFetch += String(smartgrid.getFixprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
+    sLocal +=     "  Day-fix  :";
+    sLocal += String(smartgrid.getFixprice_monthday(ntpclient.getTimeInfo()->tm_mday),2);
 
-    sFetch +=     "  Month-fix:";
-    sFetch += String(smartgrid.getFixprice_month(ntpclient.getTimeInfo()->tm_mon) ,2);
+    sLocal +=     "  Month-fix:";
+    sLocal += String(smartgrid.getFixprice_month(ntpclient.getTimeInfo()->tm_mon) ,2);
 
-    //sFetch +=     "\r\nSum-fix     : ";
-    //sFetch += String(smartgrid.fixprice_sum + smartgrid.akt_fixprice,2);
-    sFetch += "";
+    //sLocal +=     "\r\nSum-fix     : ";
+    //sLocal += String(smartgrid.fixprice_sum + smartgrid.akt_fixprice,2);
+    sLocal += "";
 
-    return sFetch;
+    return sLocal;
   }
 
   else
@@ -811,85 +867,85 @@ String setHtmlVar(const String& var)
   {
      for (size_t i = 0; i < 24; i++)
      {
-      //sFetch += String(smartgrid.flexprice_hour[i],2);
-      sFetch += String(smartgrid.getFlexprice_hour(i),2);
+      //sLocal += String(smartgrid.flexprice_hour[i],2);
+      sLocal += String(smartgrid.getFlexprice_hour(i),2);
       if (i < 23)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     debug_println(sFetch);
-     return sFetch;
+     debug_println(sLocal);
+     return sLocal;
   }
   else
   if (var == "PRICE_HOUR_FIX")
   {
      for (size_t i = 0; i <24; i++)
      {
-      //sFetch += String(smartgrid.fixprice_hour[i],2);
-      sFetch += String(smartgrid.getFixprice_hour(i),2);
+      //sLocal += String(smartgrid.fixprice_hour[i],2);
+      sLocal += String(smartgrid.getFixprice_hour(i),2);
       if (i < 23)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     return sFetch;
+     return sLocal;
   }
   else
   if (var == "PRICE_MONTHDAY_FLEX")
   {
      for (size_t i = 1; i < 32; i++)
      {
-      //sFetch += String(smartgrid.flexprice_monthday[i],2);
-      sFetch += String(smartgrid.getFlexprice_monthday(i),2);
+      //sLocal += String(smartgrid.flexprice_monthday[i],2);
+      sLocal += String(smartgrid.getFlexprice_monthday(i),2);
       if (i < 31)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     return sFetch;
+     return sLocal;
   }
   else
   if (var == "PRICE_MONTHDAY_FIX")
   {
      for (size_t i = 1; i < 32; i++) // begin with "1" !!
      {
-      //sFetch += String(smartgrid.fixprice_monthday[i],2);
-      sFetch += String(smartgrid.getFixprice_monthday(i),2);
+      //sLocal += String(smartgrid.fixprice_monthday[i],2);
+      sLocal += String(smartgrid.getFixprice_monthday(i),2);
       if (i < 31)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     return sFetch;
+     return sLocal;
   }
   else
   if (var == "PRICE_MONTH_FLEX")
   {
      for (size_t i = 0; i < 12; i++)
      {
-      //sFetch += String(smartgrid.flexprice_month[i],2);
-      sFetch += String(smartgrid.getFlexprice_month(i),2);
+      //sLocal += String(smartgrid.flexprice_month[i],2);
+      sLocal += String(smartgrid.getFlexprice_month(i),2);
       if (i < 11)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     return sFetch;
+     return sLocal;
   }
   else
   if (var == "PRICE_MONTH_FIX")
   {
      for (size_t i = 0; i < 12; i++)
      {
-      //sFetch += String(smartgrid.fixprice_month[i],2);
-      sFetch += String(smartgrid.getFixprice_month(i),2);
+      //sLocal += String(smartgrid.fixprice_month[i],2);
+      sLocal += String(smartgrid.getFixprice_month(i),2);
       if (i < 11)
       {
-       sFetch += ", ";
+       sLocal += ", ";
       }
      }
-     return sFetch;
+     return sLocal;
   }
   else
   if (var == "COST_AKT_MONTH") // read config.txt
@@ -941,6 +997,7 @@ String setHtmlVar(const String& var)
   {
     return varStore.varLUX_s_url;
   }
+#ifdef SHI_MODBUS
   else
   if (var == "SHIHEOFFSET")
   {
@@ -953,6 +1010,7 @@ String setHtmlVar(const String& var)
     //return "1.6";
     return String(float(modbusSHI.getPCSetpoint())/10.0, 1);
   }
+#endif
 
   return "";
 }
@@ -965,10 +1023,12 @@ void notFound(AsyncWebServerRequest *request)
 
 void initWebServer()
 { 
+  
+  sFetch.reserve(250);
   // --------------- Base Pages:----------------------------------
   //Route for root / web page
   webserver.on("/",          HTTP_GET, [](AsyncWebServerRequest *request)
-  {https://
+  {
    request->send(myFS, "/index.html", String(), false, setHtmlVar);
   });
   //Route for root /index web page
@@ -1038,15 +1098,16 @@ void initWebServer()
 
   webserver.on("/settings.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
-   request->send(myFS, "/settings.png", String(), false);
-  });
 
-
-#ifdef SG_READY
   webserver.on("/smartgrid.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
     request->send(myFS, "/smartgrid.html", String(), false, setHtmlVar);
   });
+  request->send(myFS, "/settings.png", String(), false);
+});
+
+
+#ifdef SG_READY
   webserver.on("/sgready.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
     request->send(myFS, "/sgready.html", String(), false, setHtmlVar);
@@ -1060,8 +1121,13 @@ void initWebServer()
 // Smart-Home-Interface --------------------------------
   webserver.on("/shi.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
+    // !!! WORKAROUNT !!! ... bis neues JSON interface läuft
+    luxws.setpollstate(WS_POLL_STATUS::NO_POLLING); 
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     request->send(myFS, "/shi.html", String(), false, setHtmlVar);
   });
+
   webserver.on("/shi.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
     request->send(myFS, "/shi.png", String(), false);
@@ -1079,7 +1145,7 @@ void initWebServer()
     sFetch += "-";
 #endif
      sFetch += ',';
-/* z.Z. Wert von Luxtonic anzeigen !
+/* z.Z. Wert von Anlage anzeigen !
 #ifdef DS100_MODBUS
     sFetch += valDS100_L1_W / 1000;                                    // 2 DS100 Power L1
     sFetch += ',';
@@ -1087,9 +1153,7 @@ void initWebServer()
 */
     sFetch += luxws.getval(LUX_VAL_TYPE::POWER_IN, true);              // 2 Power In
     sFetch += luxws.getCSVfetch(true);                                 // 3...36
-    sFetch += String(luxws.tempRoom,1);                                // 37
-    sFetch += ',';
-    sFetch += String(luxws.power_Main_InMeter);                        // 38
+
     sFetch += ",end";     
 
     //debug_printf("server.on fetch: %s",sFetch.c_str());
@@ -1268,6 +1332,7 @@ void initWebServer()
      request->send(myFS, "/config.html", String(), false, setHtmlVar);
     });
 
+#ifdef SHI_MODBUS
     // config.html POST
     webserver.on("/shi.html",          HTTP_POST, [](AsyncWebServerRequest *request)
     {
@@ -1289,13 +1354,13 @@ void initWebServer()
          }
          request->send(myFS, "/shi.html", String(), false, setHtmlVar); 
     });
-     
-  // init Webserver 
-  sFetch.reserve(150);
+ #endif
+  
   AsyncWebLog.begin(&webserver);
   AsyncWebOTA.begin(&webserver);
   webserver.onNotFound(notFound);
   webserver.begin();
+  debug_println("Init-Webserver OK!")
   }
 #endif // WEB_APP
 
@@ -1336,8 +1401,10 @@ void setup()
 
   luxws.init(varStore.varLUX_s_url.c_str(), varStore.varLUX_s_password.c_str());
   delay(1000);
+  Serial.println("***INIT-END***");
 }
 
+static uint old_minute, old_hour, old_day = 99;
 ///////////////////////////////////// TimePageSprite.drawString(20,10,buf, &Font0);///////////
 /// @brief loop
 ////////////////////////////////////////////////
@@ -1354,8 +1421,9 @@ void loop()
     testWiFiReconnect();
     ntpclient.update();
     tm* looptm = ntpclient.getTimeInfo();
-    debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
-    AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), ntpclient.getTimeInfo()->tm_sec);
+
+    debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
+    AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
     
 #ifdef MQTT_CLIENT
     AsyncWebLog.printf("Raum-Temp: %2.1f \r\n", luxws.tempRoom);
@@ -1380,20 +1448,37 @@ void loop()
     AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());  
 #endif
 
-    if (looptm->tm_hour == 0 && looptm->tm_min ==0 && looptm->tm_sec < 7)
-    { 
-      luxws.poll(true); // new Day
-    }
-    else
+    /*  ----- !!! WORKAROUND !!! ...bi neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
+    if (looptm->tm_min != old_minute) // Test min
     {
-      luxws.poll(false);
+      old_minute = looptm->tm_min;
+      luxws.setpollstate(WS_POLL_STATUS::SEND_LOGIN); 
     }
+
+    // jede Stunde neuer Login, da bei Login immer die Bedienung direkt an der Steuerungs-Einheit gestört wird (springt in Menues)
+    //if (looptm->tm_hour != old_hour) // Test new hour --> Luxtronik new Login sequence
+    //{
+    //  old_hour = looptm->tm_hour;
+    //  luxws.setpollstate(WS_POLL_STATUS::SEND_LOGIN); 
+    //}
+    */
+
+    if (looptm->tm_mday != old_day) // Test new Day --> reset dayly COP calculation
+    { 
+      _bNewDay = true;
+      old_day = looptm->tm_mday;
+    }
+
+    luxws.poll(_bNewDay);
+    _bNewDay = false;
+    
     if (luxws.isConnected())
     {
       AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
-      AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::BETRIEBSZUSTAND, false));
+      AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
       AsyncWebLog.printf("WP-PowerIn:       \t %s\r\n", luxws.getval(LUX_VAL_TYPE::POWER_IN, false));
-      
+
+      //debug_printf("[LUX]  Abschaltung: %s\r\n",        luxws.getval(LUX_VAL_TYPE::SWITCHOFF_INFO, false));
       //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
       //AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
     }
@@ -1401,6 +1486,13 @@ void loop()
     {
        AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
     }
+    /*
+    // for test :
+    String s = ntpclient.getTimeString();
+    s += ':';
+    s += String(ntpclient.getTimeInfo()->tm_sec);
+    mqtt.publish("luxtronik/time",s.c_str());
+    */
   }
   // fast blink
   if (millis() - TimerFastDuration > TimerFast)

@@ -1,15 +1,15 @@
 
 #include <Arduino.h>
 
-#ifdef ESP32_RELAY_X2
+#if defined ESP32_RELAY_X2
 #pragma message("Info : ESP32_RELAY_X2")
 #define LED_GPIO 23
 #define RELAY_1  16
 #define RELAY_2  17
 #endif
 
-#ifdef ESP32_RELAY_X4
-#pragma message("Info : ESP32_RELAY_X4")
+#if (defined ESP32_RELAY_X4 || defined ESP32_NORELAY_X4)
+#pragma message("Info : Board ESP32_X4")
 #define LED_GPIO 23
 #define RELAY_1  26
 #define RELAY_2  25
@@ -26,7 +26,7 @@ void inline initRelay()
   digitalWrite(RELAY_2, LOW);
 #endif
 
-#ifdef ESP32_RELAY_X4
+#if (defined ESP32_RELAY_X4  || defined ESP32_NORELAY_X4)
   // ESP_RELAY_X4
   // we need only RELAY_1 and RELAY_2 for SGready
   pinMode(RELAY_1, OUTPUT);

@@ -89,10 +89,12 @@
     <table>
       <tr>
         <td id="VD_ONTIME">--</td>
+        <td id="LAST_OFF_MSG">--</td>
         <td id="DEFROST_TIME">--</td>
       </tr>
       <tr>
-        <th id="LABEL_ON_OF_TIME">VD Laufzeit</th>
+        <th id="TXT_ONTIME">VD Laufzeit</th>
+        <th>letz. Abschalt.</th>
         <th>letz. Abtau.</th>
       </tr>
     </table>
@@ -150,30 +152,16 @@
          
   <script type="text/javascript">
 
-      // mal bei gelegentheit ausprobieren:
-      //const name = document.querySelector(".name"); // '.'' = class '#'' = id
-      function luxrequest()
-      {
-        // Test:
-        // luxurl = "http://192.168.2.101";
-        luxurl = "http://" + "%LUX_IP%";
-        window.location.href = luxurl;
-      }
-
-     /* wir nicht mehr benötigt da wir jezt mit Webservice mit 'REFRESH' abfragen 
-     function gotoluxtronik() 
-     {
-       var xhrlux = new XMLHttpRequest();
-       xhrlux.addEventListener("load", luxrequest);
-       xhrlux.open("POST", "luxtronik.html", true);
-       //xhrlux.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-       //xhrlux.setRequestHeader("Content-type", "text/raw");
-       xhrlux.send("name=WSoff&value=off&test=0");
-     }
-     */  
-     //function sec2date(sec)
-     //{ return new Date(sec * 1000).toISOString().substring(11, 19)}
-     
+    // mal bei gelegentheit ausprobieren:
+    //const name = document.querySelector(".name"); // '.'' = class '#'' = id
+    function luxrequest()
+    {
+      // Test:
+      // luxurl = "http://192.168.2.101";
+      luxurl = "http://" + "%LUX_IP%";
+      window.location.href = luxurl;
+    }
+   
     function reqListener ()
     {
         var myResponse = this.responseText;
@@ -181,10 +169,17 @@
         //console.log(this.responseText);
         var myArray = myResponse.split(",");
       
-        //console.log(myArray);
-        sgrStatus = String(myArray[1]);
         if (myArray[2] != null)
         {
+
+        //console.log(myArray);
+        var wpStatus = String(myArray[3]); // status Heatpump
+        var sgrStatus = String(myArray[1]);
+        if (wpStatus.length <2)
+        {
+                wpStatus = 'OFF';
+        }
+
          // Temp
          document.getElementById('WW_IST').innerHTML  = myArray[4]; 
          document.getElementById('WW_SOLL').innerHTML = "40.0" // z.Z. fix da nicht in info
@@ -221,7 +216,19 @@
          document.getElementById('EEV_C_PERCENT').innerHTML   = myArray[29]; 
          document.getElementById('DEFROST_PERCENT').innerHTML = myArray[30];
          document.getElementById('DEFROST_TIME').innerHTML    = myArray[33];
-         document.getElementById('VD_ONTIME').innerHTML       = myArray[34];
+           
+         if (wpStatus == "OFF")
+         {
+          document.getElementById('VD_ONTIME').innerHTML= myArray[39];
+          document.getElementById('TXT_ONTIME').innerHTML= "OFF-Time";
+         }
+         else
+         {
+          document.getElementById('VD_ONTIME').innerHTML= myArray[34];
+          document.getElementById('TXT_ONTIME').innerHTML= "ON-Time";
+         }
+         
+         document.getElementById('LAST_OFF_MSG').innerHTML    = myArray[40];
          
          // Power
          document.getElementById('POWER_IN').innerHTML     = myArray[9]; 
