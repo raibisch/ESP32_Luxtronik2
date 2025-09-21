@@ -77,6 +77,11 @@
          </div>
          <input class="buttonsmallred" type="submit" value="SET" onclick="submitPCMode()">
          <hr>
+         <form method="POST" action="" id="set_wwextra">
+          <input type="hidden" name="ww_extra" value="1" />
+         </form>
+         <input class="buttonsmallred" type="submit" value="WW-Extra" onclick="submitWWExtra()">
+         <hr>
          
          <div style="height: 10px;"> </div>
          <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
@@ -111,6 +116,12 @@
            let form = document.getElementById('set_pcmode');
            form.submit();
           }
+          function submitWWExtra()
+          {
+            let form = document.getElementById('set_wwextra'); 
+            form.submit();
+          }
+
          </script>
     </body>
 

@@ -38,7 +38,7 @@
 #endif
 
 // special for S2 and S4
-#if defined ESP_S2_MINI || ESP_S3_ZERO
+#if defined ESP_S2_MINI || ESP_S3_ZERO || ESP_S3_DEVKIT
 #include "driver/temp_sensor.h"
 #endif
 
@@ -62,12 +62,17 @@
  #define NEOPIXEL 21
 #endif
 
+#ifdef ESP32_S3_DEVKIT
+  #pragma message("Info : ESP32_S3_DEVKIT")
+ #define NEOPIXEL 48
+#endif
+
 #ifdef M5_COREINK
  #pragma message("Info : M5Stack CoreInk Module")
  #define LED_GPIO 10
 #endif
 
-const char* SYS_Version = "V 0.9.6";
+const char* SYS_Version = "V0.9.7";
 const char* SYS_CompileTime =  __DATE__;
 static String  SYS_IP = "0.0.0.0";
 
@@ -111,7 +116,7 @@ long   TimerFast = 0;
 const long   TimerSlowDuration   = 2000;   
 long   TimerSlow = 0;    
 
-#ifdef ESP32_S3_ZERO
+#if defined ESP32_S3_ZERO || defined ESP32_S3_DEVKIT
 static char neopixel_color = 'w';
 #define  setcolor(...) neopixel_color = __VA_ARGS__
 #else
@@ -122,36 +127,36 @@ static char neopixel_color = 'w';
 /// @param i = HIGH / LOW
 void setLED(uint8_t i)
 {
-#ifndef ESP32_S3_ZERO
- digitalWrite(LED_GPIO, i);
-#else
-  if (i==0)
-  {
+#if defined (ESP32_S3_ZERO) || defined (ESP32_S3_DEVKIT)
+if (i==0)
+ {
     neopixelWrite(NEOPIXEL,0,0,0); // off
-  }
-  else
-  {
+ }
+ else
+ {
     switch (neopixel_color)
     {
     case 'r': 
-      neopixelWrite(NEOPIXEL,6,0,0); // red
+      neopixelWrite(NEOPIXEL,2,0,0); // red
       break;
     case 'g':
-      neopixelWrite(NEOPIXEL,0,6,0); // green
+      neopixelWrite(NEOPIXEL,0,2,0); // green
       break;
     case 'b':
-      neopixelWrite(NEOPIXEL,0,0,6); // blue
+      neopixelWrite(NEOPIXEL,0,0,2); // blue
       break;
     case 'y':
-       neopixelWrite(NEOPIXEL,4,2,0); // yellow
+       neopixelWrite(NEOPIXEL,1,1,0); // yellow
       break;
     case 'w':
-      neopixelWrite(NEOPIXEL,2,2,2); // white
+      neopixelWrite(NEOPIXEL,1,1,1); // white
       break;
     default:
        break;
     }
-  }
+ }
+#else
+ digitalWrite(LED_GPIO, i);
 #endif
 }
 
@@ -166,11 +171,11 @@ static void blinkLED()
 ////////////////////////////////////////////
 inline void initLED()
 {
- #ifndef ESP32_S3_ZERO
+ #if defined ESP32_S3_ZERO || defined ESP32_S3_DEVKIT
+  neopixel_color='w'; 
+#else
   pinMode(LED_GPIO, OUTPUT);
   digitalWrite(LED_GPIO, HIGH);
-#else
-  neopixel_color='w';
 #endif
   setcolor('w'); //white
   setLED(1);
@@ -189,7 +194,6 @@ void inline initFS()
 }
 
  
-
 //////////////////////////////////////////////////////
 /// @brief  expand Class "FileVarStore" with variables
 //////////////////////////////////////////////////////
@@ -305,6 +309,7 @@ char _buf[30];
 XPString s(_buf,30);
 char _bufval[6];
 XPString sval(_bufval,6);
+float tempRoom = 20.0;
 void inline initMQTT()
 {
   // MQTT settings can be changed or set here instead
@@ -319,7 +324,11 @@ void inline initMQTT()
     s.substringBeetween(sval,"tC",4,",",0);
     
     AsyncWebLog.printf("Room-Temp: (%s) \r\n", sval.c_str());
+#ifdef LUX_WEBSERVICE
     luxws.tempRoom = atof(sval);
+#else
+    tempRoom = atof(sval);
+#endif
   });
   mqtt.begin();
 }
@@ -590,6 +599,7 @@ void initWiFi()
     
     int i = 0;
     delay(200);
+    setcolor('w');
     debug_printf("SSID:%s connecting\r\n", varStore.varWIFI_s_ssid);
     ///debug_printf("Passwort:%s\r\n", varStore.varWIFI_s_Password);
     while (!WiFi.isConnected())
@@ -597,20 +607,21 @@ void initWiFi()
         debug_print(".");
         blinkLED();
         i++;  
-        delay(400);
-        if (i > 20)
+        delay(200);
+        if (i > 200)
         {
           ESP.restart();
         }
     }
 
-    #if defined ESP32_S3_ZERO || defined MINI_32 || defined M5_COREINK
+    #if (defined ESP32_S3_ZERO || defined MINI_32 || defined M5_COREINK)
      WiFi.setTxPower(WIFI_POWER_7dBm);// brownout problems with some boards or low battery load for M5_COREINK
      //WiFi.setTxPower(WIFI_POWER_15dBm);// Test 15dB
-    #elseif defined DEBUG_PRINT && (defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
+    #endif
+
+    #if (defined DEBUG_PRINT) && (defined ESP32_RELAY_X4 || defined ESP32_RELAY_X2)
     //WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // decrease power over serial TTY-Adapter
     #else
-     //WiFi.setTxPower(WIFI_POWER_19dBm);
      WiFi.setTxPower(WIFI_POWER_19_5dBm);
     #endif
 
@@ -1095,18 +1106,16 @@ void initWebServer()
   {
    request->send(myFS, "/file-list.png", String(), false);
   });
-
   webserver.on("/settings.png",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
+    request->send(myFS, "/settings.png", String(), false);
+  });
 
   webserver.on("/smartgrid.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
     request->send(myFS, "/smartgrid.html", String(), false, setHtmlVar);
   });
-  request->send(myFS, "/settings.png", String(), false);
-});
-
-
+  
 #ifdef SG_READY
   webserver.on("/sgready.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
@@ -1121,10 +1130,11 @@ void initWebServer()
 // Smart-Home-Interface --------------------------------
   webserver.on("/shi.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
+#ifdef LUX_WEBSERVICE
     // !!! WORKAROUNT !!! ... bis neues JSON interface läuft
     luxws.setpollstate(WS_POLL_STATUS::NO_POLLING); 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  #endif
     request->send(myFS, "/shi.html", String(), false, setHtmlVar);
   });
 
@@ -1144,15 +1154,48 @@ void initWebServer()
 #else
     sFetch += "-";
 #endif
-     sFetch += ',';
-/* z.Z. Wert von Anlage anzeigen !
-#ifdef DS100_MODBUS
-    sFetch += valDS100_L1_W / 1000;                                    // 2 DS100 Power L1
     sFetch += ',';
-#else 
-*/
-    sFetch += luxws.getval(LUX_VAL_TYPE::POWER_IN, true);              // 2 Power In
-    sFetch += luxws.getCSVfetch(true);                                 // 3...36
+#ifdef LUX_WEBSERVICE
+    sFetch += luxws.getval(LUX_VAL_TYPE::POWER_IN, true);       // 2 Power In
+    sFetch += luxws.getCSVfetch(true);                          // 3...36 
+#else
+#ifdef SHI_MODBUS
+    sFetch +=  modbusSHI.getWorkingMode();                      // 2 OFF, Heizung, Warmwasser, Abtauen
+    sFetch += ',';
+#ifdef DS100_MODBUS
+    sFetch +=  valDS100_L1_W ;                                  // 3 Watt DS100 L1
+    sFetch += ',';  
+    sFetch += valDS100_L1_KWH;                                  // 4 kWh  DS100 L1
+#else
+    sFetch+= "0,0";
+#endif
+    sFetch += ',',
+    sFetch += smldecoder.getWatt();                             // 5 Watt Hauptzaehler
+    sFetch += ',';
+    sFetch += (modbusSHI.getPower_InX100() * 100);              // 6 Luxtronik Watt IN
+    sFetch += ',';
+    sFetch += (modbusSHI.getPower_OutX100() * 100);             // 7 Luxtronik Watt OUT
+    sFetch += ',';
+    sFetch += (modbusSHI.getSumEnergy_InX100());                // 8 Luxtronik Sum kWh IN
+    sFetch += ',';
+    sFetch += (modbusSHI.getSumEnergy_OutX100());               // 9 Luxtronik Sum kWh OUT
+    sFetch += ',';
+
+    sFetch += tempRoom;                                         // 10 Celsius
+    sFetch += ',';
+    sFetch += (modbusSHI.getTempOutdoorX10() / 10.0);           // 11 Celsius
+    sFetch += ',';
+    
+    sFetch += (modbusSHI.getTempWWX10() / 10.0);                // 12 Celsius
+    sFetch += ',';
+    sFetch += (modbusSHI.getRL_IstX10() / 10.0);                // 13 Celsius
+    sFetch += ',';
+    sFetch += (modbusSHI.getRL_SollX10() / 10.0);               // 14 Celsius
+    sFetch += ',';
+    sFetch += (modbusSHI.getVL_IstX10() / 10.0);                // 15 Celsius
+#endif
+    sFetch += ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+#endif
 
     sFetch += ",end";     
 
@@ -1352,6 +1395,11 @@ void initWebServer()
           debug_println("[SHI] SET-KW !!!");
           modbusSHI.setPCSetpoint(int16_t(sVal.toFloat()*10.0));
          }
+         else
+         if (sName == "ww_extra")
+         {
+          modbusSHI.setWWExtra();
+         }
          request->send(myFS, "/shi.html", String(), false, setHtmlVar); 
     });
  #endif
@@ -1398,8 +1446,9 @@ void setup()
 #ifdef SHI_MODBUS
   modbusSHI.init(varStore.varLUX_s_url.c_str());
 #endif
-
+#ifdef LUX_WEBSERVICE
   luxws.init(varStore.varLUX_s_url.c_str(), varStore.varLUX_s_password.c_str());
+#endif
   delay(1000);
   Serial.println("***INIT-END***");
 }
@@ -1410,7 +1459,9 @@ static uint old_minute, old_hour, old_day = 99;
 ////////////////////////////////////////////////
 void loop() 
 {
+#ifdef LUX_WEBSERVICE
    luxws.loop();
+#endif
 #ifdef MQTT_CLIENT
    mqtt.loop();
 #endif
@@ -1426,15 +1477,24 @@ void loop()
     AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
     
 #ifdef MQTT_CLIENT
+    mqtt.loop();
+#ifdef LUX_WEBSERVICE
     AsyncWebLog.printf("Raum-Temp: %2.1f \r\n", luxws.tempRoom);
+#else
+    AsyncWebLog.printf("Raum-Temp: %2.1f\r\n", tempRoom);
+#endif
 #endif
 #ifdef SML_TIBBER
     smldecoder.read(); 
+#ifdef LUX_WEBSERVICE
     luxws.power_Main_InMeter = smldecoder.getWatt();
+#endif
 #endif  
 #ifdef DS100_MODBUS
     DS100read();
+#ifdef LUX_WEBSERVICE
     luxws.energy_Sub_InMeter =  valDS100_L1_KWH;
+#endif
 #endif
 #ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
@@ -1445,10 +1505,14 @@ void loop()
 #ifdef SHI_MODBUS
     modbusSHI.poll();
     AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
-    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());  
+    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());
+    AsyncWebLog.printf("[SHI] kWh IN Sum:%d \r\n", modbusSHI.getSumEnergy_InX100());
+    AsyncWebLog.printf("[SHI] kWh OUTSum:%d \r\n", modbusSHI.getSumEnergy_OutX100());
+    AsyncWebLog.printf("[SHI] Extra-WW  :%d \r\n", modbusSHI.getWWExtra());
+      
 #endif
 
-    /*  ----- !!! WORKAROUND !!! ...bi neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
+    /*  ----- !!! WORKAROUND !!! ...bis neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
     if (looptm->tm_min != old_minute) // Test min
     {
       old_minute = looptm->tm_min;
@@ -1469,9 +1533,9 @@ void loop()
       old_day = looptm->tm_mday;
     }
 
+  #ifdef LUX_WEBSERVICE
     luxws.poll(_bNewDay);
     _bNewDay = false;
-    
     if (luxws.isConnected())
     {
       AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
@@ -1486,6 +1550,7 @@ void loop()
     {
        AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
     }
+  #endif
     /*
     // for test :
     String s = ntpclient.getTimeString();
@@ -1494,6 +1559,7 @@ void loop()
     mqtt.publish("luxtronik/time",s.c_str());
     */
   }
+
   // fast blink
   if (millis() - TimerFastDuration > TimerFast)
   {

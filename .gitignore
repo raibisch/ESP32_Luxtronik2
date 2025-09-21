@@ -9,6 +9,8 @@ config.txt
 cred.txt
 *.intern
 upload
+*.bin
+
 
 
 

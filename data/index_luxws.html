@@ -1,0 +1,251 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>%DEVICEID%</title>
+        <meta content="width=device-width, initial-scale=0.8, user-scalable=yes" name="viewport">
+        <meta http-equiv="Cache-Control" content="max-age=31536000, immutable" />
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <meta charset="UTF-8">
+        <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+        <link rel="icon" sizes="192x192" href="android-chrome-192x192.png">
+        <link rel="icon" href="favicon.ico">
+        <link rel="manifest" href="manifest.json">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme-color" content="#ffffff">
+    </head>
+    <body>
+      <h3 id="HEADLINE">%DEVICEID%</h3>
+    
+      <div class="outerring" id="RING_ID">
+       <div class="innerring"></div>
+        <div class="temp_room">
+          <img src="temp_inside.png"><div id="TEMP_ROOM">--.-</div>
+        </div>
+        <div class="temp_room">
+          <img src="temp_outside.png"><div id="TEMP_OUT">--.-</div>
+        </div>
+        <div class="temp_room"></div>
+       <div>
+        <div id="ICON_STATUS" class="icon_status" onclick="window.location.href='http://192.168.2.23/#/Dashboard'" ><img id="ICON_IMG" src="poweroff.png"></div>
+        <div id="KW_IN" class="ringtext_value"  onclick="window.location.href='http://192.168.2.23/#/Devices/77/Log'">xx.xxx</div>
+        <div id="COP_AKT" class="ringtext_value2" onclick="window.location.href='http://192.168.2.23/#/Devices/78/Log'" >xx.x</div>
+       </div>
+       <div>
+        <div class="value_status" id="WP_STATUS">--</div>
+        <div class="ringtext_unit">[kW-In]</div>
+        <div class="ringtext_unit2">[COP-Akt.]</div>
+       </div>
+       <div class="ringtext_status2" id="SGR_STATUS">--</div>
+     </div>
+     <table>
+            <tr>
+              <td id="WW_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/4562/Log'">--</td>
+              <td id="VL_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/4557/Log'">--</td>
+              <td id="RL_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/4558/Log'">--</td>
+              <td id="AT_IST" onclick="window.location.href='http://192.168.2.23/#/Devices/4560/Log'">--</td>
+            </tr>
+            <tr>
+              <th>WW[&#8451;]</th>
+              <th>VL[&#8451;]</th>
+              <th>RL[&#8451;]</th>
+              <th>TA[&#8451;]</th>
+            </tr>
+            <tr>
+              <td id="HUP_LH" onclick="window.location.href='http://192.168.2.23/#/Devices/4576/Log'">--</td>
+              <td id="RL_VL_IST">--</td>
+              <td id="RLSOLL_RLIST">--</td>
+              <td id="RL_SOLL" onclick="window.location.href='http://192.168.2.23/#/Devices/4559/Log'">--</td>
+            </tr>
+            <tr>
+              <th>HP[l/h]</th>
+              <th>VL-RL &Delta;</th>
+              <th>RL-SOLL &Delta;</th>
+              <th>RL-SOLL</th>
+            </tr>
+        </table>
+        <table>
+            <tr>
+              <td id="VD_ONTIME" onclick="window.location.href='http://192.168.2.23/#/Devices/4575/Log'">--</td>
+              <td id="VD_RPM"    onclick="window.location.href='http://192.168.2.23/#/Devices/4577/Log'">--</td>
+              <td id="VE_RPM">--</td>
+            </tr>
+            <tr>
+              <th id="TXT_ONTIME">Laufz.</th>
+              <th>VD-RPM</th>
+              <th>Vent-RPM</th>
+            </tr>
+            <tr>
+              <td id="WW_COPDAY">--</td>
+              <td id="HE_COPDAY">--</td>
+              <td id="SUM_COPDAY">--</td>
+            </tr>
+            <tr>
+              <th>Day-COP WW   </th>
+              <th>Day-COP HEIZ </th>
+              <th>Day-COP SUM  </th>
+            </tr>
+      </table>
+    <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
+    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Anlage</button>
+    <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Dashboard'"><img src="homeauto.png">Domoticz</button>
+    <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button>
+    <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
+    <button type="button" class="image-btn" onclick="window.location.href='shi.html'"><img src="shi.png">Smart-Home</button>
+    <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
+    <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+         
+    <script type="text/javascript">
+
+          
+            function luxrequest()
+            {
+             // Test:
+             //luxurl = "http://192.168.2.101";
+             luxurl = "http://" + "%LUX_IP%";
+             window.location.href = luxurl;
+            }
+            function reqListener ()
+            {
+              // Test
+              //var myResponse = "08:02,1,0.50,Heizen,19.3,7.0,29.4,30.0,34.1,0.67,2.57,2206.0,310.7,2516.7,8125.3,1101.6,9226.9,3.97,0.00,3.97,534,30.0,Aus,Aus,1798,7.8,3.69,10.82,23.9,0.0,0.0,649,6.3,24.03.25 11:42,01:09:43,29.1,1800,20.6,-125,01:01:01,keine Anford.,end"
+              var myResponse = this.responseText;
+              var myArray = myResponse.split(",");
+            
+              //console.log(myArray);
+              sgrStatus = String(myArray[1]);
+              wpStatus = "--";
+              
+              // PV-Anteil al ring-Anteil darstellen
+              var r = document.querySelector(':root');
+              r.style.setProperty('--ringcolor', 'red');
+
+              if (myArray[1] != null)
+              {
+               // pv Anteil 
+               let pwrmeter_in = myArray[38];
+               let pwrwp_in    = myArray[2] *1000;
+               let pvdeckung = 0;
+               if (pwrmeter_in > pwrwp_in)
+               {
+                 pvdeckung = 2;
+               }
+               else
+               if (pwrmeter_in <= 0)
+               {
+                pvdeckung = 358;
+               }
+               else
+               {
+                pvdeckung = pwrwp_in - pwrmeter_in;
+                pvdeckung = (1- (pwrmeter_in / pwrwp_in))*360 ;
+                pvdeckung = Math.floor(pvdeckung);
+               }
+
+               let _txt = pvdeckung.toString() + 'deg';
+               r.style.setProperty('--pwrplus', _txt);
+
+               document.getElementById('HEADLINE').innerHTML = '%DEVICEID%' + '&emsp;' + myArray[0];
+               document.getElementById('SGR_STATUS').innerHTML  = "SGready-Mode:" + sgrStatus;
+               document.getElementById('TEMP_ROOM').textContent = myArray[37];    
+              // -------------------------
+               // Test
+              //wpStatus = 'Hei'
+              var wpStatus = String(myArray[3]); // status Heatpump
+              var wpIcon = 'poweroff.png';
+              if (wpStatus.length <2)
+              {
+                document.getElementById('RING_ID').style.background = 'gray';
+                wpStatus = 'OFF';
+              }
+              if (wpStatus.indexOf('Hei') >=0)
+              {
+                wpIcon = 'radiator.png';
+                document.getElementById('RING_ID').className = "outerring_blink"; 
+                //document.getElementById('RING_ID').style.background = 'red';
+                r.style.setProperty('--ringcolor', 'red');
+
+              }
+              else if (wpStatus.indexOf('AB') >=0)
+              {
+                wpIcon = 'defrost.png';
+                document.getElementById('RING_ID').className = "outerring_blink";
+                //document.getElementById('RING_ID').style.background = 'blue';
+                r.style.setProperty('--ringcolor', 'blue');
+              }
+              else if (wpStatus.indexOf('W') >= 0)
+              { 
+                wpIcon = 'hotwater.png';
+                document.getElementById('RING_ID').className = "outerring_blink";
+                //document.getElementById('RING_ID').style.background = 'orange';
+                r.style.setProperty('--ringcolor', 'orange');
+              }
+              document.getElementById('WP_STATUS').innerHTML = wpStatus;
+              document.getElementById('ICON_IMG').src = wpIcon;
+              // -----------------------
+              
+               document.getElementById('KW_IN').innerHTML   = myArray[2] ;
+             
+               document.getElementById('WW_IST').innerHTML  = myArray[4]; 
+               document.getElementById('AT_IST').innerHTML  = myArray[5];
+               document.getElementById('TEMP_OUT').innerHTML= myArray[5];
+               document.getElementById('RL_IST').innerHTML  = myArray[6];
+               document.getElementById('RL_SOLL').innerHTML = myArray[7];
+               document.getElementById('VL_IST').innerHTML  = myArray[8];
+             
+               //document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
+               //document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
+               //document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+               
+               if (wpStatus == "OFF")
+               {
+                document.getElementById('VD_ONTIME').innerHTML= myArray[39];
+                document.getElementById('TXT_ONTIME').innerHTML= myArray[40];
+               }
+               else
+               {
+                document.getElementById('VD_ONTIME').innerHTML= myArray[34];
+                document.getElementById('TXT_ONTIME').innerHTML= "ON-Time";
+               }
+
+               document.getElementById('VD_RPM').innerHTML   = myArray[24];
+               document.getElementById('VE_RPM').innerHTML   = myArray[31];
+               // COP-Day
+               document.getElementById('WW_COPDAY').innerHTML = myArray[18];
+               document.getElementById('HE_COPDAY').innerHTML = myArray[17];
+               document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
+
+               document.getElementById('HUP_LH').innerHTML    = myArray[20];
+               //document.getElementById('SUMEL_KWH').innerHTML = myArray[4];
+
+               let rldelta = (myArray[6]) - (myArray[7]);
+               document.getElementById('RLSOLL_RLIST').innerHTML = rldelta.toFixed(1);
+
+               let vlrldelta = (myArray[8]) - (myArray[6]);
+               document.getElementById('RL_VL_IST').innerHTML = vlrldelta.toFixed(1);
+
+               if (parseFloat( myArray[9]) > 0)
+               {
+                 document.getElementById('COP_AKT').innerHTML = ((myArray[10] *1.0) / myArray[9]).toFixed(2);
+               }
+               else
+               {
+                document.getElementById('COP_AKT').innerHTML = "--"
+               }
+
+               // COP-Day
+               document.getElementById('WW_COPDAY').innerHTML = myArray[18];
+               document.getElementById('HE_COPDAY').innerHTML = myArray[17];
+               document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
+              }
+            }
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", reqListener);
+            setInterval(function()
+            {
+              //var dateNow = new Date();  // current time
+              oReq.open("GET", "/fetch");
+              oReq.send();
+            }, 2000);
+    </script>
+    </body>
+</html>
