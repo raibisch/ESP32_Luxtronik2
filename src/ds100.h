@@ -1,9 +1,16 @@
 #include <Arduino.h>
 
+/* -----------------------------------
+very minimalistic implementation for DS100 Energy Meter
+(no need for extra modbus lib !)
+(C) by Juergen Goldmann
+-------------------------------------*/
+
 #ifdef DS100_MODBUS
-// DS-100 Modbus Energy-Meter
-#define MODBUS_RXD_GPIO 2
-#define MODBUS_TXT_GPIO 4   
+// now in platformio.ini defined:
+//#define MODBUS_RXD_GPIO 2
+//#define MODBUS_TXT_GPIO 4
+
 HardwareSerial Serial_Modbus(1);
 
 // Modbus Commands
@@ -32,9 +39,7 @@ uint32_t valDS100_L3_KWH = 0;
 /// @brief Init Electrical Meter communication over RS485
 inline void DS100Init()
 {
-    Serial_Modbus.begin(9600, SERIAL_8N1, MODBUS_RXD_GPIO, MODBUS_TXT_GPIO);
-    //while(Serial_Modbus.available())
-    //{Serial_Modbus.read();}
+    Serial_Modbus.begin(9600, SERIAL_8N1, DS100_RX_GPIO, DS100_TX_GPIO);
     debug_println("Modbus init");
 }
     
@@ -44,14 +49,13 @@ inline void DS100Init()
 /// @brief read values from Modbus
 uint32_t DS100GetValue(const char* tx)
 {
- uint8_t rxValue[10];
+ uint8_t rxValue[10]={0};
  for (int i =0; i < 8; i++)
  { 
   //sprintf(HexStr,"%02X ",tx[i]);
   //sHex+=HexStr;
   Serial_Modbus.write(tx[i]);
  }
- //Serial_Modbus.flush(true);
  //AsyncWebLog.println("TX:" + sHex);
  delay(150); // wait for answer
  uint8_t rxix=0;
@@ -61,7 +65,7 @@ uint32_t DS100GetValue(const char* tx)
    if (rxix < 10)
    {
     rxValue[rxix]= (uint8_t) Serial_Modbus.read();
-    //debug_printf("%02X",rxValue[rxix]);
+    debug_printf("%02X",rxValue[rxix]);
     rxix++;
    }
  } 
@@ -84,6 +88,5 @@ inline void DS100read()
     valDS100_L1_KWH = DS100GetValue(DS100_TX_GET_L1_KWH); 
     valDS100_L2_W   = DS100GetValue(DS100_TX_GET_L2_W);
     valDS100_L2_KWH = DS100GetValue(DS100_TX_GET_L2_KWH); 
-
 }
 #endif
