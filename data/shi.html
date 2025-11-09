@@ -18,9 +18,11 @@
           <div class="range-slider">
             <label for="range"> Temp. Korrektur [K]</label><br />
             <form id="set_temp" action="" method="POST">
-             <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-1.5" max="1.5" value="%SHIHEOFFSET%"  step="0.5"/>
+             <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-2.5" max="2.5" value="%SHIHEOFFSET%"  step="0.5"/>
             </form>
             <div class="sliderticks">
+              <span>-2.5</span>
+              <span></span>   
               <span>-1.5</span>
               <span></span>
               <span>-0.5</span>
@@ -28,13 +30,17 @@
               <span>+0.5</span>
               <span></span>
               <span>+1.5</span>
+               <span></span>
+              <span>+2.5</span>
             </div>
           </div>
           <div id="val_temp" class="value">%SHIHEOFFSET%</div>
          </div>
          <input class="buttonsmallred" type="submit"  value="SET" onclick="submitTemp()" />
+
          <hr>
          <div style="height: 10px;"> </div>
+
          <div class="range">
             <div class="range-slider">
               <label for="range"> PC-Setppoint Limit [kW]</label><br />
@@ -67,7 +73,7 @@
           <div class="range-slider">
             <label for="range"> PC-Setpoint Mode</label><br/>
             <form id="set_pcmode" action="" method="POST">
-             <input type="range"  id="range_pcmode" name="range_pcmode"  min="0" max="2" value="%SHIPCMODE%"/>
+             <input type="range"  id="range_pcmode" name="range_pcmode"  min="0" max="2" value="%SHIPCMODE%" step="1"/>
             </form>
             <div class="sliderticks">
               <span>OFF</span>
@@ -75,18 +81,35 @@
               <span>HARD</span> 
             </div>
           </div>
-          <div class="value"> </div>
+          <div id="val_pcmode" class="value">%SHIPCMODE%</div>
          </div>
-         <input class="buttonsmallred" type="submit" value="SET" onclick="submitPCMode()">
-
-
-         <hr />
+         <input class="buttonsmallred" type="submit" value="SET" onclick="submitPCMode()" />
+         
+         <hr>
+  <!-- 
+  
          <form method="POST" action="" id="set_wwextra">
           <input type="hidden" name="ww_extra" value="1" />
          </form>
-         <input class="buttonsmallred" type="submit" value="WW-Extra" onclick="submitWWExtra()">
-         <hr>
-         <hr>      
+         <input class="buttonsmallred" type="submit" value="WW-Extra" onclick="submitWWExtra()" />
+
+       
+  -->
+     
+        <!-- <form action="/action_page.php"> -->
+        <form id="set_wwextra" action="" method="POST">
+          <p>Extra-WW:</p>
+          <input type="radio" id="wwx_off" name="ww_extra" value="0"  checked="checked" />
+          <label for="wwx_off">OFF</label> 
+          <input type="radio" id="wwx_on" name="ww_extra" value="1">
+          <label for="wwx_on">ON</label>
+          <br> 
+          <input class="buttonsmallred" type="submit" value="SET" onclick="submitWWExtra()"/>
+         </form>
+  
+   <!-- 
+         <hr>    
+
          <div class="range">
           <div class="range-slider">
             <label for="range"> WW Extra</label><br/>
@@ -100,9 +123,10 @@
           </div>
           <div class="value"> </div>
          </div>
-         <input class="buttonsmallred" type="submit" value="SET" onclick="submitWWExtra()"> 
-         <hr>
-         
+         <input class="buttonsmallred" type="submit" value="SET" onclick="submitWWExtra()" /> 
+        
+    -->
+          <hr> 
          <div style="height: 10px;"> </div>
          <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
          <button type="button" class="image-btn" > </button>

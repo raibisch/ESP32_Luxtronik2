@@ -23,5 +23,10 @@ def copy_spiffs(source, target, env):
     copyfile(file1, file2)
     print("--> Done! :-)")
 
+
+# Install custom packages from the PyPi registry
+# https://community.platformio.org/t/no-automatic-upload-on-esp32-s3-minni/47684/6
+# env.Execute("$PYTHONEXE -m pip install intelhex")
+
 env.AddPostAction(FIRMWARE_BIN, copy_firmware)
 env.AddPostAction(SPIFFS_BIN, copy_spiffs)

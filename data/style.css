@@ -164,7 +164,11 @@ td{
 textarea{
   width:90%;
   max-width: 600px;
-  height: 25vh;
+  height: 30vh;
+}
+
+object{
+  width:100%;
 }
 
 hr{
@@ -273,7 +277,7 @@ hr{
 
 .ringtext_status2 {
   position: relative;
-  top: 12%;
+  top: 6%;
   font-size: 0.8rem;
   color: #fff;
   text-align: center;
@@ -359,11 +363,10 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none; 
   /* creating a custom design */
-  height: 22px;
-  width: 22px;
+  height: 23px;
+  width: 23px;
   background-color: red;
   border-radius: 50%;
-  border: none;
 }
 
 /* Thumb: Firefox */
@@ -373,19 +376,19 @@ input[type="range"]::-moz-range-thumb {
   background-color: red;
   border-radius: 50%;
   border-width: 3px;
-  border-color: gray;
+  border-color: goldenrod;
 }
+
 
 input[type="radio"] {
   appearance: none;
   width: 30px; 
   height: 30px; 
   cursor: pointer;
-  outline: none;
+  outline: 3px solid goldenrod;
   background: white;
-  border-width: 3px;
-  border-color: blue;
-  border-radius: 50%;
+  padding: 1ex; 
+  border-radius: 20%;
 }
 
 input[type=radio]:checked {

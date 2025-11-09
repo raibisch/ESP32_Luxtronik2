@@ -305,11 +305,17 @@ WPFileVarStore varStore;
 
 
 #ifdef MQTT_CLIENT
-char _buf[30];
-XPString s(_buf,30);
-char _bufval[6];
-XPString sval(_bufval,6);
-float tempRoom = 20.0;
+char _buf[60];
+XPString s(_buf,60);
+
+char _bufval[10];
+XPString sval(_bufval,10);
+
+// values from my room control unit, or set in Web-App
+float    tempRoom = 20.0;
+uint16_t setTempRoomOffset = 0;
+uint16_t setExtraWW        = 0;
+
 void inline initMQTT()
 {
   // MQTT settings can be changed or set here instead
@@ -323,15 +329,62 @@ void inline initMQTT()
     s = payload;
     s.substringBeetween(sval,"tC",4,",",0);
     
-    AsyncWebLog.printf("Room-Temp: (%s) \r\n", sval.c_str());
+    AsyncWebLog.printf("Room-Temp: %s\r\n", sval.c_str());
 #ifdef LUX_WEBSERVICE
     luxws.tempRoom = atof(sval);
 #else
     tempRoom = atof(sval);
 #endif
   });
+  
+  mqtt.subscribe("hasp/RaumTermo/state/luxValues", [](const char * topic, const char * payload)
+  {
+    //debug_printf("MQTT: '%s' = %s\n", topic, payload); 
+    //AsyncWebLog.printf("MQTT: %s: %s\r\n", topic, payload);
+
+    // topic:    hasp/RaumTermo/state/luxValues 
+    // payload: {"tempOffset":0,"tempRoom":20.6,"extraWW":0}
+    s = payload;
+    
+    // Achtung Raumbedienung gibt den Offset als relativen Wert von 21 Grad aus deshalb ->  + 210 bei Berechnung
+    // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-
+    sval.reset();
+    s.substringBeetween(sval, "tempOffset",12,",",0);  
+    AsyncWebLog.printf("[ROOM]TempOffset:%s\r\n", sval.c_str());
+    setTempRoomOffset = atoi(sval);
+   
+    sval.reset();
+    s.substringBeetween(sval, "extraWW",9,"}",0);
+    AsyncWebLog.printf("[ROOM]extraWW:   %s\r\n", sval.c_str());
+    setExtraWW = atoi(sval);
+
+    if (setExtraWW == 1)
+    {
+      AsyncWebLog.printf("[ROOM] SET WW-Extra!! **\r\n");
+      modbusSHI.setWWExtra();
+    }
+
+    sval.reset();
+    s.substringBeetween(sval, "tempRoom",10,",",0);  
+    float tempRoom2 = atof(sval);
+
+    // alternativ: Wert von Raum-Controller nehmen
+    if ((tempRoom == 20.0) && (tempRoom2 > 15.0)) 
+    {
+      tempRoom = tempRoom2; 
+    }
+    AsyncWebLog.printf("[ROOM]tempRoom: %02.1f\r\n", tempRoom);
+   
+    // Achtung Raumbedienung gibt den Offset als relativen Wert von 21 Grad aus deshalb ->  + 210
+    // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-
+    int16_t setpoint = modbusSHI.calcRoomOffset(tempRoom*10, 210+(setTempRoomOffset*10));
+    modbusSHI.setHeatOffset(setpoint);
+   
+  });
+
   mqtt.begin();
 }
+
 #endif
 
 
@@ -1021,6 +1074,10 @@ String setHtmlVar(const String& var)
     //return "1.6";
     return String(float(modbusSHI.getPCSetpoint())/10.0, 1);
   }
+  if (var == "SP_ROOM")
+  {
+    return String(21 + setTempRoomOffset);
+  }
 #endif
 
   return "";
@@ -1062,6 +1119,12 @@ void initWebServer()
   webserver.on("/info.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
    request->send(myFS, "/info.html", String(), false, setHtmlVar);
+  });
+
+  //Route for Home-Automation-page
+  webserver.on("/homeauto.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/homeauto.html", String(), false, setHtmlVar);
   });
 
   // config.txt GET
@@ -1160,7 +1223,7 @@ void initWebServer()
     sFetch += luxws.getCSVfetch(true);                          // 3...36 
 #else
 #ifdef SHI_MODBUS
-    sFetch +=  modbusSHI.getWorkingMode();                      // 2 OFF, Heizung, Warmwasser, Abtauen
+    sFetch +=  modbusSHI.getStringWorkingMode();                      // 2 OFF, Heizung, Warmwasser, Abtauen
     sFetch += ',';
 #ifdef DS100_MODBUS
     sFetch +=  valDS100_L1_W ;                                  // 3 Watt DS100 L1
@@ -1193,10 +1256,23 @@ void initWebServer()
     sFetch += (modbusSHI.getRL_SollX10() / 10.0);               // 14 Celsius
     sFetch += ',';
     sFetch += (modbusSHI.getVL_IstX10() / 10.0);                // 15 Celsius
-#endif
-    sFetch += ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
-#endif
+ 
+    sFetch += ',';  
+    sFetch += modbusSHI.getCOPWW();                             // 16 COP WW   
+    sFetch += ','; 
+    sFetch += modbusSHI.getCOPHE();                             // 17 COP HE
+    sFetch += ',';
+    sFetch += modbusSHI.getCOPSUM();                            // 18 COP SUM
 
+    sFetch += ',';  
+    sFetch += modbusSHI.getCOPdayWW();                          // 19 COP WW     
+    sFetch += ','; 
+    sFetch += modbusSHI.getCOPdayHE();                          // 20 COP HE
+    sFetch += ',';
+    sFetch += modbusSHI.getCOPdaySUM();                         // 21 COP SUM
+#endif
+    sFetch += ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+#endif
     sFetch += ",end";     
 
     //debug_printf("server.on fetch: %s",sFetch.c_str());
@@ -1502,15 +1578,7 @@ void loop()
     if (smartgrid.bRule_OFF)
     {AsyncWebLog.printf("[SGR] Rule **OFF** !\r\n");}
 #endif
-#ifdef SHI_MODBUS
-    modbusSHI.poll();
-    AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
-    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());
-    AsyncWebLog.printf("[SHI] kWh IN Sum:%d \r\n", modbusSHI.getSumEnergy_InX100());
-    AsyncWebLog.printf("[SHI] kWh OUTSum:%d \r\n", modbusSHI.getSumEnergy_OutX100());
-    AsyncWebLog.printf("[SHI] Extra-WW  :%d \r\n", modbusSHI.getWWExtra());
-      
-#endif
+
 
     /*  ----- !!! WORKAROUND !!! ...bis neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
     if (looptm->tm_min != old_minute) // Test min
@@ -1533,7 +1601,17 @@ void loop()
       old_day = looptm->tm_mday;
     }
 
-  #ifdef LUX_WEBSERVICE
+#ifdef SHI_MODBUS
+    modbusSHI.poll(_bNewDay);
+    AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
+    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());
+    AsyncWebLog.printf("[SHI] kWh IN Sum:%d \r\n", modbusSHI.getSumEnergy_InX100());
+    AsyncWebLog.printf("[SHI] kWh OUTSum:%d \r\n", modbusSHI.getSumEnergy_OutX100());
+    AsyncWebLog.printf("[SHI] Extra-WW  :%d \r\n", modbusSHI.getWWExtra());
+#endif
+
+
+#ifdef LUX_WEBSERVICE
     luxws.poll(_bNewDay);
     _bNewDay = false;
     if (luxws.isConnected())
@@ -1550,7 +1628,7 @@ void loop()
     {
        AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
     }
-  #endif
+#endif
     /*
     // for test :
     String s = ntpclient.getTimeString();

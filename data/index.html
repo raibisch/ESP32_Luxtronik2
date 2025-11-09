@@ -19,7 +19,7 @@
       <div class="outerring" id="RING_ID">
        <div class="innerring"></div>
         <div class="temp_room">
-          <img src="temp_inside.png"><div id="TEMP_ROOM">--.-</div>
+          <img src="temp_inside.png"><div id="TEMP_ROOM">--.-</div><div id="TEMP_SP_ROOM">[%SP_ROOM%]</div>
         </div>
         <div class="temp_room">
           <img src="temp_outside.png"><div id="TEMP_OUT">--.-</div>
@@ -35,7 +35,7 @@
         <div class="ringtext_unit">[kW-In]</div>
         <div class="ringtext_unit2">[COP-Akt.]</div>
        </div>
-       <div class="ringtext_status2" id="SGR_STATUS">--</div>
+       <div class="ringtext_status2" id="SGR_STATUS">-x-</div>
      </div>
      <table>
             <tr>
@@ -83,16 +83,14 @@
       </table>
     <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
     <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Anlage</button>
-    <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Dashboard'"><img src="homeauto.png">Domoticz</button>
-    <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button>
+    <button type="button" class="image-btn" onclick="window.location.href='homeauto.html'"><img src="homeauto.png">Domoticz</button>
+    <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button> 
     <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
     <button type="button" class="image-btn" onclick="window.location.href='shi.html'"><img src="shi.png">Smart-Home</button>
     <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
     <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
          
     <script type="text/javascript">
-
-          
             function luxrequest()
             {
              // Test:
@@ -100,6 +98,7 @@
              luxurl = "http://" + "%LUX_IP%";
              window.location.href = luxurl;
             }
+
             function reqListener ()
             {
               // Test
@@ -186,19 +185,27 @@
                document.getElementById('RL_IST').innerHTML  = myArray[13];
                document.getElementById('RL_SOLL').innerHTML = myArray[14];
                document.getElementById('VL_IST').innerHTML  = myArray[15];
-                                           
-               // COP-Day
-               //document.getElementById('WW_COPDAY').innerHTML  = (myArray[] * 1.0);
-               //document.getElementById('HE_COPDAY').innerHTML  = myArray[17];
-               // for Test COP Sum
-               document.getElementById('SUM_COP').innerHTML = ((myArray[9] * 1.0) / (myArray[8] * 1.0)).toFixed(2);
-
+             
+               
                let rldelta = (myArray[13]) - (myArray[14]);
                document.getElementById('RLSOLL_RLIST').innerHTML = rldelta.toFixed(1);
 
                let vlrldelta = (myArray[13]) - (myArray[15]);
                document.getElementById('RL_VL_IST').innerHTML = vlrldelta.toFixed(1);
 
+               // COP-Day
+               //document.getElementById('WW_COPDAY').innerHTML  = (myArray[] * 1.0);
+               //document.getElementById('HE_COPDAY').innerHTML  = myArray[17];
+               // COP Sum
+               document.getElementById('WW_COP').innerHTML  = (myArray[16]*1.0).toFixed(2);
+               document.getElementById('HE_COP').innerHTML  = (myArray[17]*1.0).toFixed(2);
+               document.getElementById('SUM_COP').innerHTML = ((myArray[9] * 1.0) / (myArray[8] * 1.0)).toFixed(2);
+               
+               document.getElementById('WW_COPDAY').innerHTML  = myArray[19];
+               document.getElementById('HE_COPDAY').innerHTML  = myArray[20];
+               document.getElementById('SUM_COPDAY').innerHTML = myArray[21];
+             
+                 
                if (parseFloat( myArray[7]) > 0)
                {
                  document.getElementById('COP_AKT').innerHTML = ((myArray[7] *1.0) / myArray[6]).toFixed(2);
@@ -207,7 +214,6 @@
                {
                 document.getElementById('COP_AKT').innerHTML = "--"
                }
-
               }
             }
             var oReq = new XMLHttpRequest();
