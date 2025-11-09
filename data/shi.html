@@ -32,14 +32,14 @@
           </div>
           <div id="val_temp" class="value">%SHIHEOFFSET%</div>
          </div>
-         <input class="buttonsmallred" type="submit"  value="SET" onclick="submitTemp()">
+         <input class="buttonsmallred" type="submit"  value="SET" onclick="submitTemp()" />
          <hr>
          <div style="height: 10px;"> </div>
          <div class="range">
             <div class="range-slider">
               <label for="range"> PC-Setppoint Limit [kW]</label><br />
-              <form id="set_kw" action="" method="POST">
-              <input type="range" id="range_kw" name="range_kw" onchange="changeKW()" min="0.8" max="2.1" value="%SHIPCSETPOINT%"  step="0.1"/>
+               <form id="set_kw" action="" method="POST">
+               <input type="range" id="range_kw" name="range_kw" onchange="changeKW()" min="0.8" max="2.1" value="%SHIPCSETPOINT%"  step="0.1"/>
               </form>
               <div class="sliderticks">
                 <span>0.8</span>
@@ -60,7 +60,9 @@
             </div>
             <div id="val_kw" class="value">%SHIPCSETPOINT%</div>
          </div>
-         <input class="buttonsmallred" type="submit" id="set_shi_kw"  value="SET" onclick="submitKW()">          
+         <input class="buttonsmallred" type="submit" id="set_shi_kw"  value="SET" onclick="submitKW()" /> 
+         
+         
          <div class="range">
           <div class="range-slider">
             <label for="range"> PC-Setpoint Mode</label><br/>
@@ -76,11 +78,29 @@
           <div class="value"> </div>
          </div>
          <input class="buttonsmallred" type="submit" value="SET" onclick="submitPCMode()">
-         <hr>
+
+
+         <hr />
          <form method="POST" action="" id="set_wwextra">
           <input type="hidden" name="ww_extra" value="1" />
          </form>
          <input class="buttonsmallred" type="submit" value="WW-Extra" onclick="submitWWExtra()">
+         <hr>
+         <hr>      
+         <div class="range">
+          <div class="range-slider">
+            <label for="range"> WW Extra</label><br/>
+            <form id="set_pcmode" action="" method="POST">
+             <input type="range"  id="ww_extra" name="ww_extra"  min="0" max="1" value="%WWEXTRA%"/>
+            </form>
+            <div class="sliderticks">
+              <span>OFF</span>
+              <span>ON</span>
+            </div>
+          </div>
+          <div class="value"> </div>
+         </div>
+         <input class="buttonsmallred" type="submit" value="SET" onclick="submitWWExtra()"> 
          <hr>
          
          <div style="height: 10px;"> </div>
