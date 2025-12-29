@@ -14,9 +14,9 @@
         <meta name="theme-color" content="#ffffff">
     </head>
     <body>
-      <h3 id="HEADLINE">%DEVICEID%</h3>
-    
+      <h3 id="HEADLINE">%DEVICEID%</h3>  
       <div class="outerring" id="RING_ID">
+         <div>%LUX_ERROR_NR%</div>
        <div class="innerring"></div>
         <div class="temp_room">
           <img src="temp_inside.png"><div id="TEMP_ROOM">--.-</div><div id="TEMP_SP_ROOM">[%SP_ROOM%]</div>
@@ -24,7 +24,6 @@
         <div class="temp_room">
           <img src="temp_outside.png"><div id="TEMP_OUT">--.-</div>
         </div>
-        <div class="temp_room"></div>
        <div>
         <div id="ICON_STATUS" class="icon_status" onclick="window.location.href='http://192.168.2.23/#/Dashboard'" ><img id="ICON_IMG" src="poweroff.png"></div>
         <div id="KW_IN" class="ringtext_value"  onclick="window.location.href='http://192.168.2.23/#/Devices/77/Log'">xx.xxx</div>
@@ -78,17 +77,19 @@
             <tr>
               <th>Day-COP WW   </th>
               <th>Day-COP HEIZ </th>
-              <th>Day-COP SUM  </th>
+              <th>Day-COP SUM  </th>    
             </tr>
       </table>
-    <button type="button" class="image-btn" onclick="window.location.href='log.html'"><img src="file-list.png">Log</button>
-    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"><img src="heatpump.png">Anlage</button>
-    <button type="button" class="image-btn" onclick="window.location.href='homeauto.html'"><img src="homeauto.png">Domoticz</button>
-    <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button> 
-    <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
-    <button type="button" class="image-btn" onclick="window.location.href='shi.html'"><img src="shi.png">Smart-Home</button>
-    <button type="button" class="image-btn" onclick="window.location.href='meter.html'"><img src="current.png">Meter</button>
-    <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
+    <button type="button" class="image-btn" onclick="window.location.href='log.html'">       <img src="file-list.png">Log</button>
+    <button type="button" class="image-btn" onclick="window.location.href='luxtronik.html'"> <img src="heatpump.png">Anlage</button>
+    <button type="button" class="image-btn" onclick="window.location.href='homeauto.html'">  <img src="homeauto.png">Domoticz</button>
+    <button type="button" class="image-btn" onclick="window.location.href='lux_page.html'">  <img src="luxtronik.png">Luxtronik</button> 
+    <button type="button" class="image-btn" onclick="window.location.href='shi.html'">       <img src="shi.png">SHI</button> 
+    <button type="button" class="image-btn" onclick="window.location.href='sgready.html'">       <img src="sgready.png">SG-Ready</button>
+    <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.96/index.html'"> <img src="ems.png">EMS</button>
+   
+    <button type="button" class="image-btn" onclick="window.location.href='meter.html'">     <img src="current.png">Meter</button>
+    <button type="button" class="image-btn" onclick="window.location.href='setup.html'">     <img src="settings.png">Setup</button>
          
     <script type="text/javascript">
             function luxrequest()

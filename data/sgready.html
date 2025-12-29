@@ -21,15 +21,18 @@
     <input class="buttonsmallgreen"  type="submit" id="idsg2" name="sg2" value="SGR-2" onclick="submitSGR()">
     <input class="buttonsmallorange" type="submit" id="idsg3" name="sg3" value="SGR-3" onclick="submitSGR()">
     <input class="buttonsmallred"    type="submit" id="idsg4" name="sg4" value="SGR-4" onclick="submitSGR()">
+    <input class="buttonsmall"       type="submit" id="idsg0" name="sg_off" value="SG-OFF" onclick="submitSGR()">  
   </form>
   <div style="height: 10px;"> </div>
   <div style="height: 320px">
     <canvas id="myChart"></canvas>
   </div>
-  <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button>
+  <!-- <button type="button" class="image-btn" onclick="window.location.href='smartgrid.html'"><img src="sg.png">SmartGrid</button> -->
   <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">Home</button>
   <button type="button" class="image-btn" onclick="submitReload()">                   <img src="reload.png">Reload</button>
   <button type="button" class="image-btn" onclick="window.location.href='config.html'"><img src="settings.png">Setup</button>
+  <button type="button" class="image-btn" onclick="window.location.href='shi.html'">       <img src="shi.png">Luxtronik SHI</button> 
+   
 
   <script type="text/javascript"> 
     function submitSGR() 
@@ -77,7 +80,7 @@
     var xvar = ["00:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", " 19:00", "20:00", "21:00", "22:00", "23:00"];
     var yvar = [%SGHOURMODE%];
     // for debugging:
-    //var yvar = [0.9, 0.9, 1.0, 1.9, 2.0, 2, 1, 2, 2, 2, 2, 2, 2, 3, 0.9, 2, 2, 2, 2, 2, 1, 1, 2, 2];
+    //var yvar = [0.9, 0.9, 1.2, 1.9, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1.4, 0.9, 2, 2, 2, 2, 2, 1, 1, 2, 2];
 
     var verticalLinePlugin =
     {
@@ -157,21 +160,21 @@
 
       var dataset = myChart.data.datasets[0];
       for (var i = 0; i < dataset.data.length; i++) {
-        if (dataset.data[i] == 1) {
+        if (dataset.data[i] <= 0.9) {
           dataset.backgroundColor[i] = chartColors.blue;
         }
         else
-          if (dataset.data[i] == 2) {
+          if (dataset.data[i] <=1.1) {
             dataset.backgroundColor[i] = chartColors.green;
           }
           else
-            if (dataset.data[i] == 3) {
+            if (dataset.data[i] <= 1.5) {
               dataset.backgroundColor[i] = chartColors.yellow;
             }
             else
-              if (dataset.data[i] == 4) {
-                dataset.backgroundColor[i] = chartColors.red;
-              }
+            {
+              dataset.backgroundColor[i] = chartColors.red;
+            }
       }
       myChart.update(); //update the chart
 

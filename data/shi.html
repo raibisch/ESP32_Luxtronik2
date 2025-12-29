@@ -72,12 +72,14 @@
          <div class="range">
           <div class="range-slider">
             <label for="range"> PC-Setpoint Mode</label><br/>
+
             <form id="set_pcmode" action="" method="POST">
-             <input type="range"  id="range_pcmode" name="range_pcmode"  min="0" max="2" value="%SHIPCMODE%" step="1"/>
+             <input type="range"  id="range_pcmode" name="range_pcmode"  onchange="changePCMode()"  min="0" max="2" value="%SHIPCMODE%" step="1"/>
             </form>
+            
             <div class="sliderticks">
               <span>OFF</span>
-              <span>SMART</span>
+              <span>SOFT</span>
               <span>HARD</span> 
             </div>
           </div>
@@ -129,7 +131,7 @@
           <hr> 
          <div style="height: 10px;"> </div>
          <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
-         <button type="button" class="image-btn" > </button>
+         <button type="button" class="image-btn" onclick="window.location.href='sgready.html'">       <img src="sgready.png">SG-Ready</button>
          <button type="button" class="image-btn" onclick="window.location.href='setup.html'"><img src="settings.png">Setup</button>
 
          <script type="text/javascript">
@@ -144,7 +146,12 @@
            let x = document.getElementById("range_kw").value;
            document.getElementById("val_kw").innerHTML = x;
           } 
-          
+          function changePCMode() 
+          {
+           let x = document.getElementById("range_pcmode").value;
+           document.getElementById("val_pcmode").innerHTML = x;
+          } 
+
           function submitKW()
           {
            let form = document.getElementById('set_kw');
@@ -165,6 +172,18 @@
             let form = document.getElementById('set_wwextra'); 
             form.submit();
           }
+
+         let shi_ww_extra = %SHIWWEXTRA%;
+         //let shi_ww_extra = 0;
+         if (shi_ww_extra == 1)
+         {
+            document.getElementById("wwx_on").checked = true;
+         }
+         else
+         {
+           document.getElementById("wwx_off").checked = true;
+         }
+
 
          </script>
     </body>

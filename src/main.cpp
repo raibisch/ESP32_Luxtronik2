@@ -87,7 +87,7 @@ WiFiClient wificlient; // for Tibber-Pulse und Shelly oder Tasmota Relais REST-I
 LuxWebsocket luxws; // Luxtronik Webservice
 #endif
 
-#if defined SML_TIBBER || defined SML_TASMOTA
+#if defined SML_TIBBER || defined SML_TASMOTA || defined SML_ECOTRACKER
 // Energy-Meter data from Tibber-Pulse
 SMLdecode smldecoder;
 #endif
@@ -103,7 +103,7 @@ LuxModbusSHI modbusSHI;
 // fetch String;
 String sFetch;
 
-static bool _bNewDay = false;
+bool _bNewDay = false;
 
 // ntp client
 const char* TimeServerLocal = "192.168.2.1";
@@ -211,7 +211,7 @@ class WPFileVarStore final: public FileVarStore
    String varLUX_s_password = "999999";
 
   #ifdef MQTT_CLIENT
-   String varMQTT_s_url       = "192.168.2.22";
+   String varMQTT_s_url       = "192.168.2.23";
    String varMQTT_s_shellyht = "shellies/shellyhtg3-wohnzimmer/status/temperature:0";
   #endif
 
@@ -221,7 +221,7 @@ class WPFileVarStore final: public FileVarStore
    int    varCOST_i_mwst    = 19;   // MwSt (=tax percent) of hour price
    float  varCOST_f_fix     = 17.2; // fix part of hour price in cent
 #endif
-#if defined SML_TASMOTA || defined SML_TIBBER
+#if defined SML_TASMOTA || defined SML_TIBBER || defined SML_ECOTRACKER
    String varSML_s_url      = "";
    String varSML_s_user     = "";
    String varSML_s_password = "";
@@ -241,12 +241,12 @@ class WPFileVarStore final: public FileVarStore
    String varSG_s_sg3       = "";        //  http://192.168.2.137/cm?cmnd=Power1%200 Tasmota Relais1 2 off   ("                             ")
    String varSG_s_sg4       = "";        //  http://192.168.2.137/cm?cmnd=Backlog%20Power1%201%3BPower2%200   Tasmota Relais1=on, Relais2=off (replace % with # in config) switch Relais 1 and Relais 2 
 #endif
-#ifdef SHI_MODBUS
+
 uint16_t varSHI_i_pcsp1      = 14;
 uint16_t varSHI_i_pcsp2      = 14;
 uint16_t varSHI_i_pcsp3      = 14;
 uint16_t varSHI_i_pcsp4      = 14;
-#endif
+
 
 
  protected:
@@ -256,7 +256,7 @@ uint16_t varSHI_i_pcsp4      = 14;
      varWIFI_s_mode       = GetVarString(GETVARNAME(varWIFI_s_mode)); //STA or AP
      varWIFI_s_password   = GetVarString(GETVARNAME(varWIFI_s_password));
      varWIFI_s_ssid       = GetVarString(GETVARNAME(varWIFI_s_ssid));
-#if defined SML_TASMOTA || defined SML_TIBBER
+#if defined SML_TASMOTA || defined SML_TIBBER || defined SML_ECOTRACKER
      varSML_s_url         = GetVarString(GETVARNAME(varSML_s_url));
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
      varSML_s_password    = GetVarString(GETVARNAME(varSML_s_password));
@@ -282,7 +282,7 @@ uint16_t varSHI_i_pcsp4      = 14;
      varSG_s_sg3           = GetVarString(GETVARNAME(varSG_s_sg3));
      varSG_s_sg4           = GetVarString(GETVARNAME(varSG_s_sg4));
 #endif
-#if defined SML_TASMOTA || defined SML_TIBBER
+#if defined SML_TASMOTA || defined SML_TIBBER || defined SML_ECOTRACKER
      varSML_s_url         = GetVarString(GETVARNAME(varSML_s_url));
      varSML_s_password    = GetVarString(GETVARNAME(varSML_s_password));
      varSML_s_user        = GetVarString(GETVARNAME(varSML_s_user));
@@ -302,8 +302,6 @@ uint16_t varSHI_i_pcsp4      = 14;
 
 WPFileVarStore varStore;
 
-
-
 #ifdef MQTT_CLIENT
 char _buf[60];
 XPString s(_buf,60);
@@ -312,24 +310,26 @@ char _bufval[10];
 XPString sval(_bufval,10);
 
 // values from my room control unit, or set in Web-App
-float    tempRoom = 20.0;
-uint16_t setTempRoomOffset = 0;
-uint16_t setExtraWW        = 0;
+float    tempRoom         = 20.0;
+int16_t setTempRoomOffset = 0;
+uint16_t setExtraWW       = 0;
 
 void inline initMQTT()
 {
   // MQTT settings can be changed or set here instead
   mqtt.host = varStore.varMQTT_s_url;
   mqtt.client_id = "esplux" + WiFi.macAddress();
+
   // Subscribe to a topic and attach a callback: shelly HT3
   mqtt.subscribe(varStore.varMQTT_s_shellyht, [](const char * topic, const char * payload)
   {
-    debug_printf("MQTT: '%s' = %s\n", topic, payload); 
-    AsyncWebLog.printf("MQTT: %s: %s\r\n", topic, payload);
+    //debug_printf("MQTT: '%s' = %s\n", topic, payload); 
+    //AsyncWebLog.printf("[MQTT] %s: %s\r\n", topic, payload);
     s = payload;
+    sval.reset();
     s.substringBeetween(sval,"tC",4,",",0);
-    
-    AsyncWebLog.printf("Room-Temp: %s\r\n", sval.c_str());
+      
+    AsyncWebLog.printf("[MQTT] Shelly temp: %s\r\n", sval.c_str());
 #ifdef LUX_WEBSERVICE
     luxws.tempRoom = atof(sval);
 #else
@@ -347,20 +347,19 @@ void inline initMQTT()
     s = payload;
     
     // Achtung Raumbedienung gibt den Offset als relativen Wert von 21 Grad aus deshalb ->  + 210 bei Berechnung
-    // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-
+    // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-)
     sval.reset();
     s.substringBeetween(sval, "tempOffset",12,",",0);  
-    AsyncWebLog.printf("[ROOM]TempOffset:%s\r\n", sval.c_str());
+    AsyncWebLog.printf("[MQTT] Raum TempOffset:%s\r\n", sval.c_str());
     setTempRoomOffset = atoi(sval);
    
     sval.reset();
     s.substringBeetween(sval, "extraWW",9,"}",0);
-    AsyncWebLog.printf("[ROOM]extraWW:   %s\r\n", sval.c_str());
+    AsyncWebLog.printf("[MQTT] Raum extraWW:   %s\r\n", sval.c_str());
     setExtraWW = atoi(sval);
 
     if (setExtraWW == 1)
     {
-      AsyncWebLog.printf("[ROOM] SET WW-Extra!! **\r\n");
       modbusSHI.setWWExtra();
     }
 
@@ -474,7 +473,7 @@ bool sendSGreadyURL(String s)
   AsyncWebLog.printf("sendSGreadURL: %s\r\n", s.c_str());
   int getlength;
   s.replace('#','%'); // because % % is used as html insert marker
-  http.setConnectTimeout(800); // 16.02.2025 fix: if url not found or down
+  http.setConnectTimeout(500); // 16.02.2025 fix: if url not found or down
   http.begin(wificlient, s);
   int httpResponseCode = http.GET();
   
@@ -497,15 +496,6 @@ bool sendSGreadyURL(String s)
   http.end();
 
   return false;
-}
-
-/// @brief internel helper function
-/// @param val of PC-Setpoint
-void setSHIPCSetpoint(uint val)
-{
-#ifdef SHI_MODBUS
-    modbusSHI.setPCSetpoint(val);
-#endif
 }
 
 
@@ -562,40 +552,43 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   {
   case 1:
     setcolor('b');
-    sendSGreadyURL(varStore.varSG_s_sg1);
+    //sendSGreadyURL(varStore.varSG_s_sg1);
 #ifdef SHI_MODBUS
-    setSHIPCSetpoint(varStore.varSHI_i_pcsp1);
+    modbusSHI.setPCMode(2); // PC-Mode HARD
+    modbusSHI.setPCSetpoint(varStore.varSHI_i_pcsp1);
 #endif
-    setRelay(1,1);
-    setRelay(2,0);
-    
+    //setRelay(1,1);
+    //setRelay(2,0);
     break;
   case 2:
     setcolor('g');
-    sendSGreadyURL(varStore.varSG_s_sg2);
+    //sendSGreadyURL(varStore.varSG_s_sg2);
 #ifdef SHI_MODBUS
-    setSHIPCSetpoint(varStore.varSHI_i_pcsp2);
+    modbusSHI.setPCMode(1); // PC-Mode SOFT
+    modbusSHI.setPCSetpoint(varStore.varSHI_i_pcsp2);
 #endif
-    setRelay(1,0);
-    setRelay(2,0);
+    //setRelay(1,0);
+    //setRelay(2,0);
     break;
   case 3:
     setcolor('y');
-    sendSGreadyURL(varStore.varSG_s_sg3);
+    //sendSGreadyURL(varStore.varSG_s_sg3);
 #ifdef SHI_MODBUS
-    setSHIPCSetpoint(varStore.varSHI_i_pcsp3);
+    modbusSHI.setPCMode(1); // PC-Mode SOFT
+    modbusSHI.setPCSetpoint(varStore.varSHI_i_pcsp3);
 #endif
-    setRelay(1,0);
-    setRelay(2,1);
+    //setRelay(1,0);
+    //setRelay(2,1);
     break;
   case 4:
     setcolor('r');
-    sendSGreadyURL(varStore.varSG_s_sg4);
+    //endSGreadyURL(varStore.varSG_s_sg4);
 #ifdef SHI_MODBUS
-    setSHIPCSetpoint(varStore.varSHI_i_pcsp4);
+    modbusSHI.setPCMode(0); // PC-Mode OFF
+    modbusSHI.setPCSetpoint(varStore.varSHI_i_pcsp4);
 #endif
-    setRelay(1,1);
-    setRelay(2,1);
+    //setRelay(1,1);
+    //setRelay(2,1);
     break;  
   default:
     break;
@@ -652,7 +645,7 @@ void initWiFi()
     
     int i = 0;
     delay(200);
-    setcolor('w');
+    setcolor('b');
     debug_printf("SSID:%s connecting\r\n", varStore.varWIFI_s_ssid);
     ///debug_printf("Passwort:%s\r\n", varStore.varWIFI_s_Password);
     while (!WiFi.isConnected())
@@ -666,7 +659,7 @@ void initWiFi()
           ESP.restart();
         }
     }
-
+    
     #if (defined ESP32_S3_ZERO || defined MINI_32 || defined M5_COREINK)
      WiFi.setTxPower(WIFI_POWER_7dBm);// brownout problems with some boards or low battery load for M5_COREINK
      //WiFi.setTxPower(WIFI_POWER_15dBm);// Test 15dB
@@ -868,7 +861,7 @@ String setHtmlVar(const String& var)
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
 #ifdef SHI_MODBUS
-      sLocal += getSHIPCSetpoint(smartgrid.getHour_iVarSGready(i)); // new: 2025-04-16
+      sLocal += getSHIPCSetpoint(smartgrid.getHour_iVarSGready(i)) / 10.0 ; // SHIPC-Wert * 10 =  wert in kW  
 #else
       sLocal += smartgrid.getHour_iVarSGready(i);
 #endif
@@ -1074,10 +1067,35 @@ String setHtmlVar(const String& var)
     //return "1.6";
     return String(float(modbusSHI.getPCSetpoint())/10.0, 1);
   }
+  else
+  if (var == "SHIPCMODE")
+  {
+    // return "1";
+    return String(modbusSHI.getPCMode());
+  }
+  else
+  if (var == "SHIWWEXTRA")
+  {
+    // return "1";
+    return String(modbusSHI.getWWExtra());
+  }
+  else
   if (var == "SP_ROOM")
   {
-    return String(21 + setTempRoomOffset);
+    return String(21.0 + setTempRoomOffset,1);
   }
+  else
+  if (var == "LUX_ERROR_NR")
+  {
+   String tmp = "Anlage-OK";
+   if (modbusSHI.getErrorNr() > 0)
+   {
+    tmp = "Fehler: ";
+    tmp+= String(modbusSHI.getErrorNr());
+   }
+   return String(tmp);
+  }
+
 #endif
 
   return "";
@@ -1126,6 +1144,8 @@ void initWebServer()
   {
    request->send(myFS, "/homeauto.html", String(), false, setHtmlVar);
   });
+
+
 
   // config.txt GET
   webserver.on("/reboot.html", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1190,12 +1210,12 @@ void initWebServer()
   });
 #endif
 
-// Smart-Home-Interface --------------------------------
+// SHI-Interface --------------------------------
   webserver.on("/shi.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
 #ifdef LUX_WEBSERVICE
     // !!! WORKAROUNT !!! ... bis neues JSON interface läuft
-    luxws.setpollstate(WS_POLL_STATUS::NO_POLLING); 
+    //luxws.setpollstate(WS_POLL_STATUS::NO_POLLING); 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   #endif
     request->send(myFS, "/shi.html", String(), false, setHtmlVar);
@@ -1219,8 +1239,9 @@ void initWebServer()
 #endif
     sFetch += ',';
 #ifdef LUX_WEBSERVICE
-    sFetch += luxws.getval(LUX_VAL_TYPE::POWER_IN, true);       // 2 Power In
-    sFetch += luxws.getCSVfetch(true);                          // 3...36 
+    // jetzt in extra 'fetchdevice' senden
+    //sFetch += luxws.getval(LUX_VAL_TYPE::ANLAGE_KW_IN, true);       // 2 Power In
+    //sFetch += luxws.getCSVfetch(true);                              // 3...36 
 #else
 #ifdef SHI_MODBUS
     sFetch +=  modbusSHI.getStringWorkingMode();                      // 2 OFF, Heizung, Warmwasser, Abtauen
@@ -1330,10 +1351,6 @@ void initWebServer()
   {
    request->send(myFS, "/luxtronik.png", String(), false);
   });
-  webserver.on("/homeauto.png",          HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-   request->send(myFS, "/homeauto.png", String(), false);
-  });
 
   // at index.html Luxtronic status
   webserver.on("/poweroff.png",          HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1353,6 +1370,20 @@ void initWebServer()
   {
    request->send(myFS, "/defrost.png", String(), false);
   });
+
+  // Domoticz page
+  webserver.on("/homeauto.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+   request->send(myFS, "/homeauto.png", String(), false);
+  });
+
+  // Luxtronik local Webserver
+  webserver.on("/lux_page.html",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(myFS, "/lux_page.html", String(), false);
+  });
+
+
 
   // fetch GET
   webserver.on("/fetchmeter", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1375,7 +1406,7 @@ void initWebServer()
 #else
     sFetch = "--,--,--,--,--,--,--";
 #endif
-#if defined SML_TIBBER || defined SML_TASMOTA
+#if defined SML_TIBBER || defined SML_TASMOTA ||defined SML_ECOTRACKER
     sFetch+= ',';
     sFetch+= smldecoder.getWatt();  // 7
     sFetch+= ',';
@@ -1383,7 +1414,7 @@ void initWebServer()
     sFetch+= ',';
     sFetch+= smldecoder.getOutputkWh(); // 9
 #else
-    sFetch+= ",--,--,--";
+    sFetch+= ",0,0,0";
 #endif
     request->send(200, "text/plain", sFetch);
     //debug_println("server.on /fetchmeter: "+ s);
@@ -1399,6 +1430,8 @@ void initWebServer()
     const String sArg = request->argName(0);
     debug_printf(      "sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
     //AsyncWebLog.printf("sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
+
+    
  
     if (sArg == "sg1")
     {
@@ -1419,11 +1452,17 @@ void initWebServer()
     {
        setSGreadyOutput(4, iVal);
     }
+    else
+    if (sArg == "sg_off")
+    {
+      // keine Veränderung bis 00:00 bei manueller Eingabe in Website sgready.html
+      smartgrid.bRule_OFF = true; // 29.11.2025
+    }
     else 
     if (sArg == "sgsreload")
     {
      debug_println("sgsreload");
-     smartgrid.getAppRules();   // old: setSmartGridRules(); // calulate rules from config
+     smartgrid.getAppRules(); 
      smartgrid.setAppOutputFromRules(ntpclient.getTimeInfo()->tm_hour);
     }
 
@@ -1443,6 +1482,7 @@ void initWebServer()
      {
          varStore.Save(s);
          varStore.Load();
+         _bNewDay = true;  // new COP calc
 #ifdef SG_READY
          smartgrid.refreshWebData(true); // new: 30.10.2024
          smartgrid.getAppRules();   // old: setSmartGridRules(); // calulate rules from config
@@ -1462,20 +1502,27 @@ void initWebServer()
          debug_printf("SHI-Arg: %s, Value: %s\r\n",sName.c_str(), sVal.c_str());
          if (sName == "range_temp")
          {
-           debug_println("[SHI] SET-TEMP-OFFSET !!!");
+           debug_println("[SHI] SET-TEMP-OFFSET");
            modbusSHI.setHeatOffset(int16_t(sVal.toFloat()*10.0));
          }
          else
          if (sName == "range_kw")
          {
-          debug_println("[SHI] SET-KW !!!");
+          debug_println("[SHI] PC Value (SET-KW)");
           modbusSHI.setPCSetpoint(int16_t(sVal.toFloat()*10.0));
+         }
+         else
+         if (sName == "range_pcmode")
+         {
+          debug_printf("[SHI] SET-PC-Mode: %s\r\n",sVal.c_str());
+          modbusSHI.setPCMode(int16_t(sVal.toInt()));
          }
          else
          if (sName == "ww_extra")
          {
           modbusSHI.setWWExtra();
          }
+
          request->send(myFS, "/shi.html", String(), false, setHtmlVar); 
     });
  #endif
@@ -1510,7 +1557,7 @@ void setup()
 #ifdef EPEX_PRICE
   smartgrid.init();
 #endif
-#ifdef SML_TIBBER
+#if defined SML_TIBBER || defined SML_ECOTRACKER
   smldecoder.init(varStore.varSML_s_url.c_str(), varStore.varSML_s_user.c_str(), varStore.varSML_s_password.c_str());
 #endif
 #ifdef DS100_MODBUS
@@ -1527,6 +1574,7 @@ void setup()
 #endif
   delay(1000);
   Serial.println("***INIT-END***");
+  setcolor('g'); //green
 }
 
 static uint old_minute, old_hour, old_day = 99;
@@ -1549,28 +1597,26 @@ void loop()
     ntpclient.update();
     tm* looptm = ntpclient.getTimeInfo();
 
-    debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
+    //debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
     AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
     
 #ifdef MQTT_CLIENT
     mqtt.loop();
-#ifdef LUX_WEBSERVICE
-    AsyncWebLog.printf("Raum-Temp: %2.1f \r\n", luxws.tempRoom);
-#else
     AsyncWebLog.printf("Raum-Temp: %2.1f\r\n", tempRoom);
 #endif
-#endif
-#ifdef SML_TIBBER
-    smldecoder.read(); 
-#ifdef LUX_WEBSERVICE
+
+#if defined SML_TIBBER || defined SML_ECOTRACKER
+    smldecoder.read();
+#if defined LUX_WEBSERVICE  
     luxws.power_Main_InMeter = smldecoder.getWatt();
 #endif
-#endif  
+#endif 
+
 #ifdef DS100_MODBUS
     DS100read();
-#ifdef LUX_WEBSERVICE
-    luxws.energy_Sub_InMeter =  valDS100_L1_KWH;
 #endif
+#ifdef LUX_WEBSERVICE
+    //luxws.energy_Sub_InMeter =  ds100  valDS100_L1_KWH;
 #endif
 #ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
@@ -1578,7 +1624,6 @@ void loop()
     if (smartgrid.bRule_OFF)
     {AsyncWebLog.printf("[SGR] Rule **OFF** !\r\n");}
 #endif
-
 
     /*  ----- !!! WORKAROUND !!! ...bis neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
     if (looptm->tm_min != old_minute) // Test min
@@ -1613,12 +1658,12 @@ void loop()
 
 #ifdef LUX_WEBSERVICE
     luxws.poll(_bNewDay);
-    _bNewDay = false;
+    //_bNewDay = false;
     if (luxws.isConnected())
     {
-      AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
-      AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
-      AsyncWebLog.printf("WP-PowerIn:       \t %s\r\n", luxws.getval(LUX_VAL_TYPE::POWER_IN, false));
+      //AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
+      //AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
+      //AsyncWebLog.printf("WP-PowerIn:       \t %s\r\n", luxws.getval(LUX_VAL_TYPE::POWER_IN, false));
 
       //debug_printf("[LUX]  Abschaltung: %s\r\n",        luxws.getval(LUX_VAL_TYPE::SWITCHOFF_INFO, false));
       //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
@@ -1629,6 +1674,7 @@ void loop()
        AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
     }
 #endif
+    _bNewDay = false;
     /*
     // for test :
     String s = ntpclient.getTimeString();
@@ -1644,6 +1690,7 @@ void loop()
     TimerFast = millis();
     blinkLED();
   }
+  delay(1);
 
 }
 
