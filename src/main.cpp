@@ -1383,6 +1383,12 @@ void initWebServer()
     request->send(myFS, "/lux_page.html", String(), false);
   });
 
+  // EMS
+  webserver.on("/ems.png",          HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(myFS, "/ems.png", String(), false);
+  });
+  
 
 
   // fetch GET
