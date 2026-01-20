@@ -85,7 +85,7 @@
     <button type="button" class="image-btn" onclick="window.location.href='homeauto.html'">  <img src="homeauto.png">Domoticz</button>
     <button type="button" class="image-btn" onclick="window.location.href='lux_page.html'">  <img src="luxtronik.png">Luxtronik</button> 
     <button type="button" class="image-btn" onclick="window.location.href='shi.html'">       <img src="shi.png">SHI</button> 
-    <button type="button" class="image-btn" onclick="window.location.href='sgready.html'">       <img src="sgready.png">SG-Ready</button>
+    <button type="button" class="image-btn" onclick="window.location.href='sgready.html'">   <img src="sgready.png">SG-Ready</button>
     <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.96/index.html'"> <img src="ems.png">EMS</button>
    
     <button type="button" class="image-btn" onclick="window.location.href='meter.html'">     <img src="current.png">Meter</button>
@@ -103,7 +103,7 @@
             function reqListener ()
             {
               // Test
-              //var myResponse = "08:02,1,0.50,Heizen,19.3,7.0,29.4,30.0,34.1,0.67,2.57,2206.0,310.7,2516.7,8125.3,1101.6,9226.9,3.97,0.00,3.97,534,30.0,Aus,Aus,1798,7.8,3.69,10.82,23.9,0.0,0.0,649,6.3,24.03.25 11:42,01:09:43,29.1,1800,20.6,-125,01:01:01,keine Anford.,end"
+              //var myResponse = "9:27:33,2,HEIZUNG,570,442141,8027,600,2600,42285,157007,21.40,9.40,42.20,29.50,27.10,34.40,3.63,3.73,3.71,3.63,3.73,3.71,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,end"
               var myResponse = this.responseText;
               var myArray = myResponse.split(",");
             
@@ -118,17 +118,17 @@
               if (myArray[1] != null)
               {
                // pv Anteil 
-               let pwrmeter_in = myArray[5];
-               let pwrwp_in    = myArray[3];
+               let pwrmeter_in = Number(myArray[5]);
+               let pwrwp_in    = Number(myArray[3]);
                let pvdeckung = 0;
-               if (pwrmeter_in > pwrwp_in)
-               {
-                 pvdeckung = 2;
-               }
-               else
                if (pwrmeter_in <= 0)
                {
                 pvdeckung = 358;
+               }
+               else
+               if (pwrmeter_in >= pwrwp_in)
+               {
+                 pvdeckung = 2;
                }
                else
                {
