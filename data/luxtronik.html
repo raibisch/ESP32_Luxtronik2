@@ -89,12 +89,10 @@
     <table>
       <tr>
         <td id="VD_ONTIME">--</td>
-        <td id="LAST_OFF_MSG">--</td>
         <td id="DEFROST_TIME">--</td>
       </tr>
       <tr>
         <th id="TXT_ONTIME">VD Laufzeit</th>
-        <th>letz. Abschalt.</th>
         <th>letz. Abtau.</th>
       </tr>
     </table>
@@ -123,103 +121,81 @@
         <th>Heiz-In kWh</th>
         <th>Sum-In kWh</th>
       </tr>
-      
-      <tr>
-        <td id="WW_COP">--</td>
-        <td id="HE_COP">--</td>
-        <td id="SUM_COP">--</td>
+       <tr> 
+        <td id="WW_OUT_KWH">--</td>
+        <td id="HE_OUT_KWH">--</td>
+        <td id="SUMOUT_KWH">--</td>
       </tr>
       <tr>
-        <th>COP WW   </th>
-        <th>COP HEIZ </th>
-        <th>COP SUM  </th>
-      </tr>
-
-      <tr>
-        <td id="WW_COPDAY">--</td>
-        <td id="HE_COPDAY">--</td>
-        <td id="SUM_COPDAY">--</td>
-      </tr>
-      <tr>
-        <th>COP-WW Tag</th>
-        <th>COP-HE Tag</th>
-        <th>COP-SUM Tag</th>
+        <th>WW-Out kWh</th>
+        <th>Heiz-Out kWh</th>
+        <th>Sum-Out kWh</th>
       </tr>
   </table>
+
   <button type="button" class="image-btn" onclick="window.location.href='index.html'"><img src="home.png">HOME</button>
-  <button type="button" class="image-btn" onclick="luxrequest()"><img src="luxtronik.png">Luxtronik</button>
+  <button type="button" class="image-btn" onclick="window.location.href='lux_page.html'">  <img src="luxtronik.png">Luxtronik</button> 
   <button type="button" class="image-btn" onclick="window.location.href='http://192.168.2.23#/Utility'"><img src="homeauto.png">Domoticz</button>
          
   <script type="text/javascript">
 
-    // mal bei gelegentheit ausprobieren:
-    //const name = document.querySelector(".name"); // '.'' = class '#'' = id
-    function luxrequest()
-    {
-      // Test:
-      // luxurl = "http://192.168.2.101";
-      luxurl = "http://" + "%LUX_IP%";
-      window.location.href = luxurl;
-    }
-   
     function reqListener ()
     {
         var myResponse = this.responseText;
         //myResponse = myResponse.toUpperCase();
         //console.log(this.responseText);
+
         var myArray = myResponse.split(",");
       
-        if (myArray[2] != null)
+        if (myArray[0] != null)
         {
 
-        //console.log(myArray);
-        var wpStatus = String(myArray[3]); // status Heatpump
-        var sgrStatus = String(myArray[1]);
-        if (wpStatus.length <2)
+        var wpStatus = String(myArray[46]); // status Heatpump
+        if (wpStatus.length < 3)
         {
                 wpStatus = 'OFF';
         }
 
          // Temp
-         document.getElementById('WW_IST').innerHTML  = myArray[4]; 
-         document.getElementById('WW_SOLL').innerHTML = "40.0" // z.Z. fix da nicht in info
+         document.getElementById('WW_IST').innerHTML  = myArray[7]; 
+         document.getElementById('WW_SOLL').innerHTML = myArray[8]
          document.getElementById('AT_IST').innerHTML  = myArray[5];
-         document.getElementById('RL_IST').innerHTML  = myArray[6];
+         document.getElementById('RL_IST').innerHTML  = myArray[2];
 
-         document.getElementById('RL_SOLL').innerHTML = myArray[7];
-         document.getElementById('VL_IST').innerHTML  = myArray[8];
-         document.getElementById('WQ_IN').innerHTML   = myArray[32]
+         document.getElementById('RL_SOLL').innerHTML = myArray[3];
+         document.getElementById('VL_IST').innerHTML  = myArray[1];
+         document.getElementById('WQ_IN').innerHTML   = myArray[9]
          ;
-         document.getElementById('VD_IN').innerHTML       = myArray[25];
-         document.getElementById('VD_HEIZ_TEMP').innerHTML= myArray[35];
-         document.getElementById('VD_HEIZ_ON').innerHTML  = myArray[23];
+         document.getElementById('VD_IN').innerHTML       = myArray[11];
+         document.getElementById('VD_HEIZ_TEMP').innerHTML= myArray[12];
+         document.getElementById('VD_HEIZ_ON').innerHTML  = myArray[26];
 
-         rldelta = (myArray[6]) - (myArray[7]);
-         document.getElementById('RLSOLL_DIV').innerHTML = rldelta.toFixed(2);
+         rldelta = (myArray[2]) - (myArray[3]);
+         document.getElementById('RLSOLL_DIV').innerHTML = rldelta.toFixed(1);
 
-         vlrldelta = (myArray[8]) - (myArray[6]);
-         document.getElementById('VLRL_DIV').innerHTML = vlrldelta.toFixed(2);
+         vlrldelta = (myArray[2]) - (myArray[1]);
+         document.getElementById('VLRL_DIV').innerHTML = vlrldelta.toFixed(1);
 
          // Pump
          document.getElementById('PUMP_FLOW').innerHTML  = myArray[20];
-         document.getElementById('PUMP_PWM').innerHTML   = myArray[21];
-         document.getElementById('WW_VENTIL').innerHTML  = myArray[22];
+         document.getElementById('PUMP_PWM').innerHTML   = myArray[27];
+         document.getElementById('WW_VENTIL').innerHTML  = myArray[23];
  
          //VD
-         document.getElementById('VD_ND').innerHTML  = myArray[26]; 
-         document.getElementById('VD_HD').innerHTML  = myArray[27];
-         document.getElementById('VD_RPM').innerHTML  = myArray[24];
-         document.getElementById('VD_RPM_SOLL').innerHTML = myArray[36];
-         document.getElementById('VE_RPM').innerHTML = myArray[31];
+         document.getElementById('VD_ND').innerHTML  = myArray[19]; 
+         document.getElementById('VD_HD').innerHTML  = myArray[18];
+         document.getElementById('VD_RPM').innerHTML  = myArray[29];
+         document.getElementById('VD_RPM_SOLL').innerHTML = myArray[28];
+         document.getElementById('VE_RPM').innerHTML = myArray[30];
 
-         document.getElementById('EEV_H_PERCENT').innerHTML   = myArray[28]; 
-         document.getElementById('EEV_C_PERCENT').innerHTML   = myArray[29]; 
-         document.getElementById('DEFROST_PERCENT').innerHTML = myArray[30];
-         document.getElementById('DEFROST_TIME').innerHTML    = myArray[33];
+         document.getElementById('EEV_H_PERCENT').innerHTML   = myArray[31]; 
+         document.getElementById('EEV_C_PERCENT').innerHTML   = myArray[32]; 
+         document.getElementById('DEFROST_PERCENT').innerHTML = myArray[49];
+         document.getElementById('DEFROST_TIME').innerHTML    = myArray[50];
            
          if (wpStatus == "OFF")
          {
-          document.getElementById('VD_ONTIME').innerHTML= myArray[39];
+          document.getElementById('VD_ONTIME').innerHTML= myArray[35];
           document.getElementById('TXT_ONTIME').innerHTML= "OFF-Time";
          }
          else
@@ -228,44 +204,33 @@
           document.getElementById('TXT_ONTIME').innerHTML= "ON-Time";
          }
          
-         document.getElementById('LAST_OFF_MSG').innerHTML    = myArray[40];
+         //document.getElementById('LAST_OFF_MSG').innerHTML    = myArray[40];
          
          // Power
-         document.getElementById('POWER_IN').innerHTML     = myArray[9]; 
-         document.getElementById('POWER_OUT').innerHTML    = myArray[10];
-         if (parseFloat( myArray[9]) > 0)
+         let PowerIn = parseFloat(myArray[48].substring(0,5));
+         let PowerOut = parseFloat(myArray[47].substring(0,5));
+         document.getElementById('POWER_IN').innerHTML     = PowerIn; 
+         document.getElementById('POWER_OUT').innerHTML    = PowerOut;
+
+         if (PowerIn > 0)
          {      
-          document.getElementById('COP_AKT').innerHTML = ((myArray[10] *1.0) / myArray[9]).toFixed(2);
+          document.getElementById('COP_AKT').innerHTML = (PowerOut / PowerIn).toFixed(2);
          }
          else
          {
            document.getElementById('COP_AKT').innerHTML = "--"
          }
 
-         // Energy
-         document.getElementById('HE_IN_KWH').innerHTML = myArray[11];
-         document.getElementById('WW_IN_KWH').innerHTML = myArray[12];
-         document.getElementById('SUMIN_KWH').innerHTML = myArray[13];
+         // Energy In
+         document.getElementById('HE_IN_KWH').innerHTML = myArray[56];
+         document.getElementById('WW_IN_KWH').innerHTML = myArray[57];
+         document.getElementById('SUMIN_KWH').innerHTML = myArray[58];
 
-         // COP
-         if (parseFloat( myArray[11]) > 0)
-         {
-           document.getElementById('HE_COP').innerHTML = ((myArray[14] *1.0) / myArray[11]).toFixed(2);
-         }
-         if (parseFloat( myArray[12]) > 0)
-         {
-          document.getElementById('WW_COP').innerHTML   = ((myArray[15] *1.0) / myArray[12]).toFixed(2);
-         }
-         if (parseFloat(myArray[13]) > 0)
-         {
-          document.getElementById('SUM_COP').innerHTML = ((myArray[16] *1.0) / myArray[13]).toFixed(2);
-         }
+         // Energy Out
+         document.getElementById('HE_OUT_KWH').innerHTML = myArray[53];
+         document.getElementById('WW_OUT_KWH').innerHTML = myArray[54];
+         document.getElementById('SUMOUT_KWH').innerHTML = myArray[55];
 
-         // COP-Day
-         document.getElementById('WW_COPDAY').innerHTML = myArray[18];
-         document.getElementById('HE_COPDAY').innerHTML = myArray[17];
-         document.getElementById('SUM_COPDAY').innerHTML = myArray[19];
-         
         }
     }
     var oReq = new XMLHttpRequest();
@@ -273,7 +238,7 @@
     setInterval(function()
     {
         //var dateNow = new Date();  // current time
-        oReq.open("GET", "/fetch");
+        oReq.open("GET", "/fetchlux");
         oReq.send();
     }, 2000);
   </script>

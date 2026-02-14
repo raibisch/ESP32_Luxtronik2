@@ -18,20 +18,26 @@
           <div class="range-slider">
             <label for="range"> Temp. Korrektur [K]</label><br />
             <form id="set_temp" action="" method="POST">
-             <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-2.5" max="2.5" value="%SHIHEOFFSET%"  step="0.5"/>
+             <input type="range"  id="range_temp" name="range_temp" onchange="changeTemp()" min="-4" max="4" value="%SHIHEOFFSET%"  step="0.5"/>
             </form>
             <div class="sliderticks">
-              <span>-2.5</span>
-              <span></span>   
-              <span>-1.5</span>
+              <span>-4</span>
               <span></span>
-              <span>-0.5</span>
+              <span>-3</span>
+              <span></span>
+              <span>-2</span>   
+              <span></span>
+              <span>-1</span>
+              <span></span>
               <span>0</span>
-              <span>+0.5</span>
               <span></span>
-              <span>+1.5</span>
-               <span></span>
-              <span>+2.5</span>
+              <span>+1</span>
+              <span></span>
+              <span>+2</span>
+              <span></span>
+              <span>+3</span>
+              <span></span>
+              <span>+4</span>
             </div>
           </div>
           <div id="val_temp" class="value">%SHIHEOFFSET%</div>

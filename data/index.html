@@ -179,16 +179,16 @@
               document.getElementById('WP_STATUS').innerHTML = wpStatus;
               document.getElementById('ICON_IMG').src = wpIcon;
               // -----------------------
-               document.getElementById('KW_IN').innerHTML   = myArray[3] / 1000;
+               document.getElementById('KW_IN').innerHTML   = (parseInt(myArray[3]) / 1000.0).toFixed(3);
 
-               document.getElementById('WW_IST').innerHTML  = myArray[12];
+               document.getElementById('WW_IST').innerHTML  = parseFloat(myArray[12]).toFixed(1);
             
-               document.getElementById('RL_IST').innerHTML  = myArray[13];
-               document.getElementById('RL_SOLL').innerHTML = myArray[14];
-               document.getElementById('VL_IST').innerHTML  = myArray[15];
+               document.getElementById('RL_IST').innerHTML  = parseFloat(myArray[13]).toFixed(1);
+               document.getElementById('RL_SOLL').innerHTML = parseFloat(myArray[14]).toFixed(1);
+               document.getElementById('VL_IST').innerHTML  = parseFloat(myArray[15]).toFixed(1);
              
                
-               let rldelta = (myArray[13]) - (myArray[14]);
+               let rldelta = parseFloat(myArray[13]) - parseFloat(myArray[14]);
                document.getElementById('RLSOLL_RLIST').innerHTML = rldelta.toFixed(1);
 
                let vlrldelta = (myArray[13]) - (myArray[15]);
@@ -198,23 +198,23 @@
                //document.getElementById('WW_COPDAY').innerHTML  = (myArray[] * 1.0);
                //document.getElementById('HE_COPDAY').innerHTML  = myArray[17];
                // COP Sum
-               document.getElementById('WW_COP').innerHTML  = (myArray[16]*1.0).toFixed(2);
-               document.getElementById('HE_COP').innerHTML  = (myArray[17]*1.0).toFixed(2);
-               document.getElementById('SUM_COP').innerHTML = ((myArray[9] * 1.0) / (myArray[8] * 1.0)).toFixed(2);
+               document.getElementById('WW_COP').innerHTML  = parseFloat(myArray[16]).toFixed(2);
+               document.getElementById('HE_COP').innerHTML  = parseFloat(myArray[17]).toFixed(2);
+               document.getElementById('SUM_COP').innerHTML = parseFloat(myArray[18]).toFixed(2);
                
                document.getElementById('WW_COPDAY').innerHTML  = myArray[19];
                document.getElementById('HE_COPDAY').innerHTML  = myArray[20];
                document.getElementById('SUM_COPDAY').innerHTML = myArray[21];
              
                  
-               if (parseFloat( myArray[7]) > 0)
-               {
-                 document.getElementById('COP_AKT').innerHTML = ((myArray[7] *1.0) / myArray[6]).toFixed(2);
-               }
-               else
-               {
-                document.getElementById('COP_AKT').innerHTML = "--"
-               }
+               //if (parseFloat(parseFloat[7]) > 0)
+               //{
+                 document.getElementById('COP_AKT').innerHTML = (parseFloat(myArray[7]) /  parseFloat(myArray[6])).toFixed(2);
+              // }
+              //else
+              // {
+              //  document.getElementById('COP_AKT').innerHTML = "--"
+              // }
               }
             }
             var oReq = new XMLHttpRequest();

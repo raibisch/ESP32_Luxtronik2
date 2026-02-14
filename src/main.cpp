@@ -88,7 +88,7 @@ LuxWebsocket luxws; // Luxtronik Webservice
 #endif
 
 #if defined SML_TIBBER || defined SML_TASMOTA || defined SML_ECOTRACKER
-// Energy-Meter data from Tibber-Pulse
+// Energy-Meter data from Tibber-Pulse or ECOTRACKER-Simulaton or TASMOTA-Simulation
 SMLdecode smldecoder;
 #endif
 
@@ -103,7 +103,9 @@ LuxModbusSHI modbusSHI;
 // fetch String;
 String sFetch;
 
-bool _bNewDay = false;
+static bool _bNewDay = false;
+static int _main_old_day = 0;
+static int _main_ww_delay = 0;
 
 // ntp client
 const char* TimeServerLocal = "192.168.2.1";
@@ -350,12 +352,12 @@ void inline initMQTT()
     // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-)
     sval.reset();
     s.substringBeetween(sval, "tempOffset",12,",",0);  
-    AsyncWebLog.printf("[MQTT] Raum TempOffset:%s\r\n", sval.c_str());
+    //AsyncWebLog.printf("[MQTT] Raum TempOffset:%s\r\n", sval.c_str());
     setTempRoomOffset = atoi(sval);
    
     sval.reset();
     s.substringBeetween(sval, "extraWW",9,"}",0);
-    AsyncWebLog.printf("[MQTT] Raum extraWW:   %s\r\n", sval.c_str());
+    //AsyncWebLog.printf("[MQTT] Raum extraWW:   %s\r\n", sval.c_str());
     setExtraWW = atoi(sval);
 
     if (setExtraWW == 1)
@@ -373,11 +375,6 @@ void inline initMQTT()
       tempRoom = tempRoom2; 
     }
     AsyncWebLog.printf("[ROOM]tempRoom: %02.1f\r\n", tempRoom);
-   
-    // Achtung Raumbedienung gibt den Offset als relativen Wert von 21 Grad aus deshalb ->  + 210
-    // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-
-    int16_t setpoint = modbusSHI.calcRoomOffset(tempRoom*10, 210+(setTempRoomOffset*10));
-    modbusSHI.setHeatOffset(setpoint);
    
   });
 
@@ -423,6 +420,7 @@ class SmartGridEPEX : public SmartGrid
   }
 
 #ifdef SG_READY
+  /// overwrite virtual function from class SmartGrid
   /// @brief set hour output for Application
   /// @param hour 
   void setAppOutputFromRules(uint8_t hour) final
@@ -430,6 +428,44 @@ class SmartGridEPEX : public SmartGrid
     setSGreadyOutput(getHour_iVarSGready(hour));
   }
 #endif
+
+#ifdef SHI_MODBUS
+  // neu 28.01.2026
+  /// overwrite virtual function from class SmartGrid
+  /// @brief Leistungsbegrenzung
+  /// begrenze Leistung bei RLdelta >= 1.0K und Heizung
+  /// bei Raumtemp > RaumTempSoll
+  #define DELTATEMP_LIMIT 10 // 1.0 Kelvin .. evt konfigurierbar machen !!
+  void setSHIFromLimits() final
+  {
+   if (modbusSHI.getNumWorkingMode() == LuxModbusSHI::WORKING_MODE::HEIZUNG) // Modus --> Heizen
+   {
+     if (((modbusSHI.getRL_IstX10() - modbusSHI.getRL_SollX10()) >= DELTATEMP_LIMIT))
+     {
+      modbusSHI.setPCMode(2);
+      modbusSHI.setPCSetpoint(8);
+      AsyncWebLog.printf("[SHI-Limit]: Ruecklauf\r\n");
+     }
+     else 
+     if (modbusSHI.getHeatOffsetX10() < 0)
+     {
+       modbusSHI.setPCMode(2); // Hard-Limit
+       modbusSHI.setPCSetpoint(8);
+      AsyncWebLog.printf("[SHI-Limit]: Raumtemp\r\n");
+     }
+   }
+   // Verhindert Einschalten von ZWE (Heizstab)
+   // z.Z. nicht notwendig da Heizstab über Luxtronik deaktiviert
+   /*
+   else
+   if (modbusSHI.getNumWorkingMode() == LuxModbusSHI::WORKING_MODE::WW) // Warmwasser
+   {
+     modbusSHI.setPCMode(2); // Hard-Limit
+   }
+  */
+  }
+#endif
+
 #endif
 
 
@@ -530,6 +566,7 @@ uint getSHIPCSetpoint(uint8_t sgrmode)
 /// @param h    hour to set SmartGrid-Mode
 void setSGreadyOutput(uint8_t mode, uint8_t hour)
 {
+  
   debug_printf("SetSGSGreadyOutput: %d hour:%d\r\n",mode, hour);
   if (hour > 23)
   { hour = ntpclient.getTimeInfo()->tm_hour;}
@@ -546,7 +583,6 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
   {
     return;
   }
-
 #ifdef SG_READY
   switch (mode)
   {
@@ -584,7 +620,7 @@ void setSGreadyOutput(uint8_t mode, uint8_t hour)
     setcolor('r');
     //endSGreadyURL(varStore.varSG_s_sg4);
 #ifdef SHI_MODBUS
-    modbusSHI.setPCMode(0); // PC-Mode OFF
+    modbusSHI.setPCMode(1); // PC-Mode SOFT
     modbusSHI.setPCSetpoint(varStore.varSHI_i_pcsp4);
 #endif
     //setRelay(1,1);
@@ -710,19 +746,6 @@ void testWiFiReconnect()
 #ifdef WEB_APP
 // -------------------- WEBSERVER -------------------------------------------
 // --------------------------------------------------------------------------
-
-/*
-Absturz:
-TIME: 20:37:44
-func:setHtmlVar: DEVICEID
-func:setHtmlVar: DEVICEID
-func:setHtmlVar: LUX_IP
-func:setHtmlVar: DEVICEID
-Guru Meditation Error: Core  1 panic'ed (InstrFetchProhibited). Exception was unhandled.
-
-... tritt setzt nicht mehr auf
-
-*/
 
 /// @brief replace placeholder "%<variable>%" in HTML-Code
 /// @param var 
@@ -861,8 +884,10 @@ String setHtmlVar(const String& var)
     for (size_t i = 0; i < SG_HOURSIZE; i++)
     {
 #ifdef SHI_MODBUS
+      // kW Wert statt SG-Mode zurückgeben !!
       sLocal += getSHIPCSetpoint(smartgrid.getHour_iVarSGready(i)) / 10.0 ; // SHIPC-Wert * 10 =  wert in kW  
 #else
+      // SG-Mode 1..4
       sLocal += smartgrid.getHour_iVarSGready(i);
 #endif
       if (i < SG_HOURSIZE-1)
@@ -1115,11 +1140,17 @@ void initWebServer()
   //Route for root / web page
   webserver.on("/",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
+#ifdef LUX_WEBSERVICE
+   luxws.setpollOn(false); 
+#endif 
    request->send(myFS, "/index.html", String(), false, setHtmlVar);
   });
   //Route for root /index web page
   webserver.on("/index.html",          HTTP_GET, [](AsyncWebServerRequest *request)
   {
+#ifdef LUX_WEBSERVICE
+   luxws.setpollOn(false); 
+#endif
    request->send(myFS, "/index.html", String(), false, setHtmlVar);
   });
  
@@ -1238,11 +1269,11 @@ void initWebServer()
     sFetch += "-";
 #endif
     sFetch += ',';
-#ifdef LUX_WEBSERVICE
-    // jetzt in extra 'fetchdevice' senden
+//#ifdef LUX_WEBSERVICE
+    // jetzt in extra 'fetchlux' senden
     //sFetch += luxws.getval(LUX_VAL_TYPE::ANLAGE_KW_IN, true);       // 2 Power In
     //sFetch += luxws.getCSVfetch(true);                              // 3...36 
-#else
+//#else
 #ifdef SHI_MODBUS
     sFetch +=  modbusSHI.getStringWorkingMode();                      // 2 OFF, Heizung, Warmwasser, Abtauen
     sFetch += ',';
@@ -1389,7 +1420,13 @@ void initWebServer()
     request->send(myFS, "/ems.png", String(), false);
   });
   
-
+  webserver.on("/fetchlux", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+#ifdef LUX_WEBSERVICE
+     luxws.setpollOn(true);
+     request->send(200, "text/plain", luxws.getCSVfetch());
+#endif
+  });
 
   // fetch GET
   webserver.on("/fetchmeter", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -1437,8 +1474,6 @@ void initWebServer()
     debug_printf(      "sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
     //AsyncWebLog.printf("sgready POST: arg: %s  value:%d\r\n",sArg.c_str(), iVal);
 
-    
- 
     if (sArg == "sg1")
     {
        setSGreadyOutput(1, iVal);
@@ -1539,7 +1574,7 @@ void initWebServer()
   webserver.begin();
   debug_println("Init-Webserver OK!")
   }
-#endif // WEB_APP
+
 
 
 ////////////////////////////////////////////////////
@@ -1583,7 +1618,6 @@ void setup()
   setcolor('g'); //green
 }
 
-static uint old_minute, old_hour, old_day = 99;
 ///////////////////////////////////// TimePageSprite.drawString(20,10,buf, &Font0);///////////
 /// @brief loop
 ////////////////////////////////////////////////
@@ -1591,6 +1625,7 @@ void loop()
 {
 #ifdef LUX_WEBSERVICE
    luxws.loop();
+   delay(1);
 #endif
 #ifdef MQTT_CLIENT
    mqtt.loop();
@@ -1599,20 +1634,17 @@ void loop()
    if (millis() - TimerSlowDuration > TimerSlow) 
    {
     TimerSlow = millis();                      // Reset time for next event
-    testWiFiReconnect();
     ntpclient.update();
     tm* looptm = ntpclient.getTimeInfo();
-
-    //debug_printf("\r\nTIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
-    AsyncWebLog.printf("TIME: %s:%02d\r\n", ntpclient.getTimeString(), looptm->tm_sec);
-    
-#ifdef MQTT_CLIENT
-    mqtt.loop();
-    AsyncWebLog.printf("Raum-Temp: %2.1f\r\n", tempRoom);
-#endif
-
+    AsyncWebLog.printf("[TIME] %s\r\n", ntpclient.getTimeString());
+    testWiFiReconnect();
+   
+    //debug_printf("[TIME1] %s\r\n", ntpclient.getTimeString());
+   
+ 
 #if defined SML_TIBBER || defined SML_ECOTRACKER
     smldecoder.read();
+    delay(1);
 #if defined LUX_WEBSERVICE  
     luxws.power_Main_InMeter = smldecoder.getWatt();
 #endif
@@ -1624,71 +1656,63 @@ void loop()
 #ifdef LUX_WEBSERVICE
     //luxws.energy_Sub_InMeter =  ds100  valDS100_L1_KWH;
 #endif
+   
+    
 #ifdef EPEX_PRICE
     time_t tt = ntpclient.getUnixTime();
+    //AsyncWebLog.printf("[TIME2] %s\r\n", ntpclient.getTimeString());
     smartgrid.loop(&tt);
+    //AsyncWebLog.printf("[TIME3] %s\r\n", ntpclient.getTimeString());
+
     if (smartgrid.bRule_OFF)
     {AsyncWebLog.printf("[SGR] Rule **OFF** !\r\n");}
 #endif
-
-    /*  ----- !!! WORKAROUND !!! ...bis neues JSON Protokoll realisiert ist keine Websocket Kommunikation !!
-    if (looptm->tm_min != old_minute) // Test min
-    {
-      old_minute = looptm->tm_min;
-      luxws.setpollstate(WS_POLL_STATUS::SEND_LOGIN); 
-    }
-
-    // jede Stunde neuer Login, da bei Login immer die Bedienung direkt an der Steuerungs-Einheit gestört wird (springt in Menues)
-    //if (looptm->tm_hour != old_hour) // Test new hour --> Luxtronik new Login sequence
-    //{
-    //  old_hour = looptm->tm_hour;
-    //  luxws.setpollstate(WS_POLL_STATUS::SEND_LOGIN); 
-    //}
-    */
-
-    if (looptm->tm_mday != old_day) // Test new Day --> reset dayly COP calculation
+   
+    //AsyncWebLog.printf("tm_yday:%d, old_day:%d\r\n", looptm->tm_yday, main_old_day);
+    if ((looptm->tm_yday != _main_old_day) && (looptm->tm_hour==0))// Test new Day --> reset dayly COP calculation
     { 
       _bNewDay = true;
-      old_day = looptm->tm_mday;
+      _main_old_day = looptm->tm_yday;
     }
-
+   
 #ifdef SHI_MODBUS
-    modbusSHI.poll(_bNewDay);
-    AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
-    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());
-    AsyncWebLog.printf("[SHI] kWh IN Sum:%d \r\n", modbusSHI.getSumEnergy_InX100());
-    AsyncWebLog.printf("[SHI] kWh OUTSum:%d \r\n", modbusSHI.getSumEnergy_OutX100());
-    AsyncWebLog.printf("[SHI] Extra-WW  :%d \r\n", modbusSHI.getWWExtra());
-#endif
-
-
-#ifdef LUX_WEBSERVICE
-    luxws.poll(_bNewDay);
-    //_bNewDay = false;
-    if (luxws.isConnected())
+    // Erhoehung des RL-Sollwerts bis 2 Min nach Warmassr
+    if (modbusSHI.getNumWorkingMode() == LuxModbusSHI::WORKING_MODE::WW)
     {
-      //AsyncWebLog.printf("WS-POLL-State:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_POLL,     false));
-      //AsyncWebLog.printf("WP-State:         \t %s\r\n", luxws.getval(LUX_VAL_TYPE::STATUS_HEATPUMP, false));
-      //AsyncWebLog.printf("WP-PowerIn:       \t %s\r\n", luxws.getval(LUX_VAL_TYPE::POWER_IN, false));
-
-      //debug_printf("[LUX]  Abschaltung: %s\r\n",        luxws.getval(LUX_VAL_TYPE::SWITCHOFF_INFO, false));
-      //AsyncWebLog.printf("Watt                  \t %d \r\n",smldecoder.getWatt());
-      //AsyncWebLog.printf("Leistung OUT-HEAT:    \t %s\r\n", luxws.getval(LUX_VAL_TYPE::ENERGY_OUT_HE, false));
+      _main_ww_delay = 120 / TimerSlowDuration;
     }
     else
     {
-       AsyncWebLog.printf("...wait Luxtronik connecting\r\n");
+       if (_main_ww_delay > 0)
+       {
+         _main_ww_delay--;
+         modbusSHI.setHeatOffset(60);
+       }
+       else
+       {
+         // Achtung Raumbedienung gibt den Offset als relativen Wert von 21 Grad aus deshalb ->  + 210
+         // könnte man auch bei der Raumbedienung ändern, so das ein absoluter Wert verwendet wird ;-)
+         int16_t setpoint = modbusSHI.calcRoomOffset(tempRoom*10, 210+(setTempRoomOffset*10));
+         modbusSHI.setHeatOffset(setpoint);
+       }
+
     }
+
+    modbusSHI.poll(_bNewDay);
+    AsyncWebLog.printf("[SHI] Heat-mode:%d val:%d\r\n", modbusSHI.getHeatMode(), modbusSHI.getHeatOffsetX10());
+    AsyncWebLog.printf("[SHI] PC-  mode:%d val:%d\r\n", modbusSHI.getPCMode(),   modbusSHI.getPCSetpoint());
+    //AsyncWebLog.printf("[SHI] Extra-WW  :%d \r\n", modbusSHI.getWWExtra());
+    //AsyncWebLog.printf("[SHI] kWh IN Sum:%d \r\n", modbusSHI.getSumEnergy_InX100());
+    //AsyncWebLog.printf("[SHI] kWh OUTSum:%d \r\n", modbusSHI.getSumEnergy_OutX100());
+   
 #endif
+ 
+#ifdef LUX_WEBSERVICE
+    luxws.poll(_bNewDay);
+#endif
+
     _bNewDay = false;
-    /*
-    // for test :
-    String s = ntpclient.getTimeString();
-    s += ':';
-    s += String(ntpclient.getTimeInfo()->tm_sec);
-    mqtt.publish("luxtronik/time",s.c_str());
-    */
-  }
+  } // end TimerSlow
 
   // fast blink
   if (millis() - TimerFastDuration > TimerFast)
